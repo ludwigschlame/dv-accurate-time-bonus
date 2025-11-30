@@ -1,13 +1,21 @@
+using DistanceCalculation.Logic;
 using HarmonyLib;
+using Microsoft.Win32;
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
+using UnityEngine;
 using UnityModManagerNet;
 
 namespace DistanceCalculation
 {
+	[EnableReloading]
 	public static class Main
 	{
 		public static UnityModManager.ModEntry ModEntry { get; private set; } = null!;
+		public static Settings.ModSettings Settings { get; private set; } = null!;
 		public static bool Enabled => ModEntry.Active;
 
 		public static void Log(string msg) => ModEntry.Logger.Log(msg);
@@ -22,8 +30,9 @@ namespace DistanceCalculation
 		private static bool Load(UnityModManager.ModEntry modEntry)
 		{
 			ModEntry = modEntry;
+			modEntry.OnUnload = Unload;
 
-			Log("DistanceCalculation mod loaded.");
+			Settings = UnityModManager.ModSettings.Load<Settings.ModSettings>(ModEntry);
 
 			Harmony? harmony = null;
 			try
@@ -38,7 +47,25 @@ namespace DistanceCalculation
 				return false;
 			}
 
+			Log("DistanceCalculation mod loaded.");
 			return true;
+		}
+
+		static bool Unload(UnityModManager.ModEntry modEntry)
+		{
+			RailGraph.Clear();
+			PathFinding.Clear();
+			return true;
+		}
+
+		static void DrawGUI(UnityModManager.ModEntry entry)
+		{
+			Settings.Draw(entry);
+		}
+
+		static void SaveGUI(UnityModManager.ModEntry entry)
+		{
+			Settings.Save(entry);
 		}
 	}
 }

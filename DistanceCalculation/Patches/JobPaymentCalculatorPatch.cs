@@ -1,4 +1,9 @@
+using DistanceCalculation.Logic;
+using DV.OriginShift;
 using HarmonyLib;
+using System;
+using System.Diagnostics;
+using UnityEngine;
 
 namespace DistanceCalculation.Patches
 {
@@ -13,12 +18,33 @@ namespace DistanceCalculation.Patches
 			ref float __result
 		)
 		{
-			var startStationId = startStation.stationInfo.YardID;
-			var destinationStationId1 = destinationStation.stationInfo.YardID;
+			// If there was an error during graph generation,
+			// fallback to the default distance calculation.
+			if (!RailGraph.built)
+			{
+				return true;
+			}
 
-			Main.Log($"GetDistanceBetweenStationsPrefix called between {startStationId} and {destinationStationId1}");
+			Vector3 startStationPos = startStation.transform.position - OriginShift.currentMove;
+			Vector3 destinationPos = destinationStation.transform.position - OriginShift.currentMove;
 
-			__result = 1_000f;
+			int startNode = RailGraph.FindNearestNode(startStationPos);
+			int destinationNode = RailGraph.FindNearestNode(destinationPos);
+
+			if (startNode < 0 || destinationNode < 0)
+			{
+				Main.Warning($"Could not map stations to graph nodes (start:{startNode}, end:{destinationNode}).");
+				return true;
+			}
+
+			float? distance = PathFinding.FindShortestDistance(startNode, destinationNode);
+			if (distance == null)
+			{
+				return true;
+			}
+
+			float originalDistance = Vector3.Distance(startStation.transform.position, destinationStation.transform.position);
+			__result = (float)distance;
 
 			return false;
 		}
