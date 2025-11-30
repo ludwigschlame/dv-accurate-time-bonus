@@ -1,10 +1,17 @@
+using DistanceCalculation.Logic;
 using HarmonyLib;
+using Microsoft.Win32;
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
+using UnityEngine;
 using UnityModManagerNet;
 
 namespace DistanceCalculation
 {
+	[EnableReloading]
 	public static class Main
 	{
 		public static UnityModManager.ModEntry ModEntry { get; private set; } = null!;
@@ -22,8 +29,11 @@ namespace DistanceCalculation
 		private static bool Load(UnityModManager.ModEntry modEntry)
 		{
 			ModEntry = modEntry;
-
+			modEntry.OnUnload = Unload;
 			Log("DistanceCalculation mod loaded.");
+			// TODO: this is too early, the RailTrackRegistry does not exist yet,
+			// we need to wait until the game is loaded I think
+			RailGraph.BuildGraph();
 
 			Harmony? harmony = null;
 			try
@@ -38,6 +48,12 @@ namespace DistanceCalculation
 				return false;
 			}
 
+			return true;
+		}
+
+		static bool Unload(UnityModManager.ModEntry modEntry)
+		{
+			RailGraph.Clear();
 			return true;
 		}
 	}
