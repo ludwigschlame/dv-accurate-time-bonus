@@ -17,7 +17,6 @@ namespace DistanceCalculation.Logic
 			public int FromId;
 			public int ToId;
 			public float Length;
-			public string TrackName;
 		}
 
 		private static readonly List<Node> nodes = new List<Node>();
@@ -63,11 +62,12 @@ namespace DistanceCalculation.Logic
 				var curve = railTrack.curve;
 				int pointCount = curve.pointCount;
 
-				if (pointCount < 2) {
+				if (pointCount < 2)
+				{
 					Main.Warning($"Invalid railtrack: curve should consist of at least two points, but was {pointCount}");
 					continue;
 				}
-				
+
 
 				for (int i = 0; i < pointCount - 1; i++)
 				{
@@ -90,15 +90,13 @@ namespace DistanceCalculation.Logic
 					{
 						FromId = startId,
 						ToId = endId,
-						Length = length,
-						TrackName = railTrack.name
+						Length = length
 					});
 					edges.Add(new Edge
 					{
 						FromId = endId,
 						ToId = startId,
-						Length = length,
-						TrackName = railTrack.name
+						Length = length
 					});
 				}
 			}
@@ -106,13 +104,22 @@ namespace DistanceCalculation.Logic
 
 		static int GetOrAddNode(Dictionary<Vector3, int> nodeIndex, Vector3 position)
 		{
-			// TODO: currently a lot of paths are not found, I suspect that the
-			// nodeIndex is not working as inteded. As a first step go through
-			// entries after generation and check if there are nodes that
-			// are really close by
 			if (nodeIndex.TryGetValue(position, out int id))
 			{
 				return id;
+			}
+
+			const float mergeEpsilon = 0.1f;
+
+			for (int i = 0; i < nodes.Count; i++)
+			{
+				float dist = Vector3.Distance(nodes[i].Position, position);
+				if (dist <= mergeEpsilon)
+				{
+					id = nodes[i].Id;
+					nodeIndex[position] = id;
+					return id;
+				}
 			}
 
 			id = nodes.Count;
@@ -178,6 +185,7 @@ namespace DistanceCalculation.Logic
 				   3f * u * tt * p2 +
 				   ttt * p3;
 		}
+
 	}
 }
 

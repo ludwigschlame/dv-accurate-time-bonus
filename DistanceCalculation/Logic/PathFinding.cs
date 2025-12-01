@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace DistanceCalculation.Logic
 {
 	public static class PathFinding
@@ -70,5 +72,4 @@ namespace DistanceCalculation.Logic
 			return dist[targetId];
 		}
 	}
-
 }
