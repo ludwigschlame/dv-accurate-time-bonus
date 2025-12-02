@@ -45,11 +45,9 @@ namespace DistanceCalculation.Logic
 				// TODO: if this turns out to be too inefficient,
 				// calculate the edge adjacencies in graph building.
 
-				// relax all edges starting at u
-				foreach (var edge in RailGraph.Edges)
+				// relax edges starting at u using adjacency for efficiency
+				foreach (var edge in RailGraph.Nodes[u].OutgoingEdges)
 				{
-					if (edge.FromId != u) continue;
-
 					int v = edge.ToId;
 					if (visited[v]) continue;
 

@@ -1,4 +1,5 @@
 using DistanceCalculation.Logic;
+using DistanceCalculation.LegacyLogic;
 using HarmonyLib;
 using Microsoft.Win32;
 using System;
@@ -34,6 +35,7 @@ namespace DistanceCalculation
 			// TODO: this is too early, the RailTrackRegistry does not exist yet,
 			// we need to wait until the game is loaded I think
 			RailGraph.BuildGraph();
+			LegacyRailGraph.BuildGraph();
 
 			Harmony? harmony = null;
 			try
@@ -54,6 +56,7 @@ namespace DistanceCalculation
 		static bool Unload(UnityModManager.ModEntry modEntry)
 		{
 			RailGraph.Clear();
+			LegacyRailGraph.Clear();
 			return true;
 		}
 	}

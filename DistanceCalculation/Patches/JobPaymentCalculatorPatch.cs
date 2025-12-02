@@ -1,7 +1,9 @@
-using System;
 using DistanceCalculation.Logic;
+using DistanceCalculation.LegacyLogic;
 using DV.OriginShift;
 using HarmonyLib;
+using System;
+using System.Diagnostics;
 using UnityEngine;
 
 namespace DistanceCalculation.Patches
@@ -19,7 +21,7 @@ namespace DistanceCalculation.Patches
 		{
 			// If there was an error during graph generation,
 			// fallback to the default distance calculation.
-			if (!RailGraph.built)
+			if (!RailGraph.built || !LegacyRailGraph.built)
 			{
 				return true;
 			}
@@ -36,11 +38,27 @@ namespace DistanceCalculation.Patches
 				return true;
 			}
 
-			__result = PathFinding.FindShortestDistance(startNode, destinationNode);
+			var sw = Stopwatch.StartNew();
+			float newDistance = PathFinding.FindShortestDistance(startNode, destinationNode);
+			long newMs = sw.ElapsedMilliseconds;
+
+			int legacyStart = LegacyRailGraph.FindNearestNode(startStationPos);
+			int legacyDestination = LegacyRailGraph.FindNearestNode(destinationPos);
+
+			if (legacyStart < 0 || legacyDestination < 0)
+			{
+				Main.Warning($"[Legacy] Could not map stations to graph nodes (start:{legacyStart}, end:{legacyDestination}).");
+				return true;
+			}
+
+			sw.Restart();
+			float legacyDistance = LegacyPathFinding.FindShortestDistance(legacyStart, legacyDestination);
+			long legacyMs = sw.ElapsedMilliseconds;
 
 			float originalDistance = Vector3.Distance(startStation.transform.position, destinationStation.transform.position);
-			Main.Log($"Before {originalDistance.ToString()}");
-			Main.Log($"New Calc {__result.ToString()}");
+			__result = newDistance;
+
+			Main.Log($"Distance comparison | original:{originalDistance} legacy:{legacyDistance} ({legacyMs}ms) new:{newDistance} ({newMs}ms) delta:{newDistance - legacyDistance}");
 
 			return false;
 		}
