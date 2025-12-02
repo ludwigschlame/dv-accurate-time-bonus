@@ -143,8 +143,9 @@ namespace DistanceCalculation.Logic
 				ToId = toId,
 				Length = length
 			};
-			nodes[fromId].OutgoingEdges[nodes[fromId].OutgoingEdgesLen] = edge;
-			nodes[fromId].OutgoingEdgesLen = nodes[fromId].OutgoingEdgesLen + 1;
+			var node = nodes[fromId];
+			node.OutgoingEdges[node.OutgoingEdgesLen] = edge;
+			node.OutgoingEdgesLen++;
 		}
 
 		public static int FindNearestNode(Vector3 position)
