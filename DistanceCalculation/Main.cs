@@ -31,10 +31,6 @@ namespace DistanceCalculation
 		{
 			ModEntry = modEntry;
 			modEntry.OnUnload = Unload;
-			
-			// TODO: this is too early, the RailTrackRegistry does not exist yet,
-			// we need to wait until the game is loaded I think
-			RailGraph.BuildGraph();
 
 			Settings = UnityModManager.ModSettings.Load<Settings.ModSettings>(ModEntry);
 

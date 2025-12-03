@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DV.Utils;
 using DV.UI;
+using DistanceCalculation.Logic;
 
 namespace DistanceCalculation.Patches
 {
@@ -20,6 +21,14 @@ namespace DistanceCalculation.Patches
 			foreach (var instruction in instructions)
 			{
 				yield return instruction;
+				if (!RailGraph.built)
+				{
+					RailTrackRegistry? registry = UnityEngine.Object.FindObjectOfType<RailTrackRegistry>();
+					if (registry != null)
+					{
+						RailGraph.BuildGraph();
+					}
+				}
 			}
 			
 		}
