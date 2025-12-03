@@ -4,10 +4,23 @@ namespace DistanceCalculation.Logic
 {
 	public static class PathFinding
 	{
+		// Memoization
+		public static Dictionary<(int, int), float> cache = new Dictionary<(int, int), float>();
+
+		public static void Clear()
+		{
+			cache.Clear();
+		}
+
 		// Simple implementation of Dijkstra's Algorithm
 		// that returns the minimal distance between two nodes.
-		public static float FindShortestDistance(int startId, int targetId)
+		public static float? FindShortestDistance(int startId, int targetId)
 		{
+			if (cache.TryGetValue((startId, targetId), out float distance))
+			{
+				return distance;
+			}
+
 			int n = RailGraph.Nodes.Count;
 			var dist = new float[n];
 			var prev = new int[n];
@@ -42,10 +55,7 @@ namespace DistanceCalculation.Logic
 				visited[u] = true;
 				if (u == targetId) break; // we reached the target
 
-				// TODO: if this turns out to be too inefficient,
-				// calculate the edge adjacencies in graph building.
-
-				// relax edges starting at u using adjacency for efficiency
+				// relax edges starting at u
 				foreach (var edge in RailGraph.Nodes[u].OutgoingEdges)
 				{
 					int v = edge.ToId;
@@ -63,10 +73,12 @@ namespace DistanceCalculation.Logic
 			if (prev[targetId] == -1 && startId != targetId)
 			{
 				Main.Error($"Could not find path between {startId} and {targetId}");
-				return 0.0f;
+				return null;
 			}
 
 
+			cache[(startId, targetId)] = dist[targetId];
+			cache[(targetId, startId)] = dist[targetId];
 			return dist[targetId];
 		}
 	}

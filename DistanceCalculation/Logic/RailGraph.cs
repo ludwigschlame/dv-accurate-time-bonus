@@ -26,14 +26,15 @@ namespace DistanceCalculation.Logic
 
 		private static List<Node> nodes = new List<Node>();
 		public static bool built;
+		// The new distance between station calculation can only yield larger distances than before.
+		// A multiplier is introduced (config option) that tries to keep the current balancing.
+		public static float distanceReductionFactor = 1.0f;
 
 		public static IReadOnlyList<Node> Nodes => nodes;
 
 		public static void BuildGraph()
 		{
 			if (built) return;
-
-			Stopwatch sw = Stopwatch.StartNew();
 
 			RailTrackRegistry? registry = UnityEngine.Object.FindObjectOfType<RailTrackRegistry>();
 			if (registry == null)
@@ -43,8 +44,47 @@ namespace DistanceCalculation.Logic
 			}
 
 			Build(registry.OrderedRailtracks);
-			Main.Log($"RailGraph.BuildGraph took {sw.ElapsedMilliseconds} ms");
 			built = true;
+
+			PrecalculateCommonDistances();
+		}
+
+		// Calculate the distances between all pairs of stations after graph building,
+		// so that the job generation can solely work with distance lookups from the cache.
+		private static void PrecalculateCommonDistances()
+		{
+			float totalDistances = 0.0f;
+			float legacyTotalDistances = 0.0f;
+			foreach (StationController controller1 in StationController.allStations)
+			{
+				// Due to the memoization, it does not matter that we calculate the distance
+				// between each pair of stations twice.
+				foreach (StationController controller2 in StationController.allStations)
+				{
+					if (controller1.stationInfo.YardID == controller2.stationInfo.YardID)
+					{
+						continue;
+					}
+					Vector3 startStationPos = controller1.transform.position - OriginShift.currentMove;
+					Vector3 destinationPos = controller2.transform.position - OriginShift.currentMove;
+					int startNode = RailGraph.FindNearestNode(startStationPos);
+					int destinationNode = RailGraph.FindNearestNode(destinationPos);
+					float? distance = PathFinding.FindShortestDistance(startNode, destinationNode);
+					if (distance == null)
+					{
+						Main.Error($"Could not calculate graph distance between {controller1.stationInfo.YardID} and {controller2.stationInfo.YardID}");
+						return;
+					}
+					totalDistances += (float)distance;
+					legacyTotalDistances += Vector3.Distance(controller1.transform.position, controller2.transform.position);
+				}
+			}
+			if (totalDistances == 0.0f)
+			{
+				Main.Error("Cummulated distances of all stations resulted in 0.0f");
+				return;
+			}
+			distanceReductionFactor = legacyTotalDistances / totalDistances;
 		}
 
 		public static void Clear()
@@ -57,14 +97,11 @@ namespace DistanceCalculation.Logic
 		{
 			nodes.Clear();
 			nodes.Capacity = railTracks.Count();
-			//nodes = new List<Node>(railTracks.Count());
 
 			// Map from position to node id to aggregate
 			// similar endpoints of edges into the same node.
 			var nodeIndex = new Dictionary<(int, int), int>();
 
-			Main.Log($"Track Count {railTracks.Count().ToString()}");
-			int robert = 0;
 			foreach (RailTrack railTrack in railTracks)
 			{
 				var curve = railTrack.curve;
@@ -77,7 +114,6 @@ namespace DistanceCalculation.Logic
 				}
 
 
-				robert += pointCount;
 				float length = 0f;
 				for (int i = 0; i < pointCount - 1; i++)
 				{
@@ -101,7 +137,6 @@ namespace DistanceCalculation.Logic
 				AddEdge(endId, startId, length);
 
 			}
-			Main.Log($"Point Count {robert.ToString()}");
 		}
 
 		static int GetOrAddNode(Dictionary<(int, int), int> nodeIndex, Vector3 position)
@@ -111,18 +146,18 @@ namespace DistanceCalculation.Logic
 				return id;
 			}
 
-			//const float mergeEpsilon = 0.1f;
+			const float mergeEpsilon = 0.1f;
 
-			//for (int i = 0; i < nodes.Count; i++)
-			//{
-			//	if (Math.Abs(nodes[i].Position.x - position.x) <= mergeEpsilon && Math.Abs(nodes[i].Position.z - position.z) <= mergeEpsilon)
-			//	{
-			//		Main.Log("´Fallback hit");
-			//		id = nodes[i].Id;
-			//		nodeIndex[((int)position.x, (int)position.z)] = id;
-			//		return id;
-			//	}
-			//}
+			// TODO: replace with spatial hashing
+			for (int i = 0; i < nodes.Count; i++)
+			{
+				if (Math.Abs(nodes[i].Position.x - position.x) <= mergeEpsilon && Math.Abs(nodes[i].Position.z - position.z) <= mergeEpsilon)
+				{
+					id = nodes[i].Id;
+					nodeIndex[((int)position.x, (int)position.z)] = id;
+					return id;
+				}
+			}
 
 			id = nodes.Count;
 			nodes.Add(new Node
@@ -155,9 +190,6 @@ namespace DistanceCalculation.Logic
 
 			for (int i = 0; i < nodes.Count; i++)
 			{
-				// Since the vector distances are only used for comparison with
-				// other distances, SqrMagnitude can be used instad of
-				// Vector3.Distance which avoids the expensive sqrt operation.
 				float dist = Vector3.Distance(nodes[i].Position, position);
 				if (dist < bestDist)
 				{
