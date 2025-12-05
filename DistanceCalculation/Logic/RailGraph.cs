@@ -1,7 +1,6 @@
 using DV.OriginShift;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
 
@@ -13,8 +12,7 @@ namespace DistanceCalculation.Logic
 		{
 			public int Id;
 			public Vector3 Position;
-			public Edge[] OutgoingEdges;
-			public int OutgoingEdgesLen;
+			public List<Edge> OutgoingEdges;
 		}
 
 		public struct Edge
@@ -24,17 +22,42 @@ namespace DistanceCalculation.Logic
 			public float Length;
 		}
 
-		private static List<Node> nodes = new List<Node>();
-		public static bool built;
+		private record QuantizedPosition
+		{
+			public int X;
+			public int Z;
+		}
+
+		private static readonly List<Node> nodes = [];
+		public static IReadOnlyList<Node> Nodes => nodes;
+		public static bool IsBuilt;
 		// The new distance between station calculation can only yield larger distances than before.
 		// A multiplier is introduced (config option) that tries to keep the current balancing.
-		public static float distanceReductionFactor = 1.0f;
+		public static float DistanceReductionFactor = 1.0f;
 
-		public static IReadOnlyList<Node> Nodes => nodes;
+
+		private static QuantizedPosition Quantize(Vector3 position)
+		{
+			return new QuantizedPosition
+			{
+				X = (int)position.x,
+				Z = (int)position.z
+			};
+		}
+
+		private static QuantizedPosition Shift(QuantizedPosition position, int dx, int dz)
+		{
+			return new QuantizedPosition
+			{
+				X = position.X + dx,
+				Z = position.Z + dz
+			};
+		}
+
 
 		public static void BuildGraph()
 		{
-			if (built) return;
+			if (IsBuilt) return;
 
 			RailTrackRegistry? registry = UnityEngine.Object.FindObjectOfType<RailTrackRegistry>();
 			if (registry == null)
@@ -44,7 +67,7 @@ namespace DistanceCalculation.Logic
 			}
 
 			Build(registry.OrderedRailtracks);
-			built = true;
+			IsBuilt = true;
 
 			PrecalculateCommonDistances();
 		}
@@ -55,64 +78,63 @@ namespace DistanceCalculation.Logic
 		{
 			float totalDistances = 0.0f;
 			float legacyTotalDistances = 0.0f;
-			foreach (StationController controller1 in StationController.allStations)
+			foreach (StationController startController in StationController.allStations)
 			{
 				// Due to the memoization, it does not matter that we calculate the distance
 				// between each pair of stations twice.
-				foreach (StationController controller2 in StationController.allStations)
+				foreach (StationController destinationController in StationController.allStations)
 				{
-					if (controller1.stationInfo.YardID == controller2.stationInfo.YardID)
+					if (startController.stationInfo.YardID == destinationController.stationInfo.YardID)
 					{
 						continue;
 					}
-					Vector3 startStationPos = controller1.transform.position - OriginShift.currentMove;
-					Vector3 destinationPos = controller2.transform.position - OriginShift.currentMove;
-					int startNode = RailGraph.FindNearestNode(startStationPos);
-					int destinationNode = RailGraph.FindNearestNode(destinationPos);
+					Vector3 startStationPos = startController.transform.position - OriginShift.currentMove;
+					Vector3 destinationPos = destinationController.transform.position - OriginShift.currentMove;
+					int startNode = FindNearestNode(startStationPos);
+					int destinationNode = FindNearestNode(destinationPos);
 					float? distance = PathFinding.FindShortestDistance(startNode, destinationNode);
 					if (distance == null)
 					{
-						Main.Error($"Could not calculate graph distance between {controller1.stationInfo.YardID} and {controller2.stationInfo.YardID}");
+						Main.Error($"Could not calculate graph distance between {startController.stationInfo.YardID} and {destinationController.stationInfo.YardID}");
 						return;
 					}
 					totalDistances += (float)distance;
-					legacyTotalDistances += Vector3.Distance(controller1.transform.position, controller2.transform.position);
+					legacyTotalDistances += Vector3.Distance(startController.transform.position, destinationController.transform.position);
 				}
 			}
 			if (totalDistances == 0.0f)
 			{
-				Main.Error("Cummulated distances of all stations resulted in 0.0f");
+				Main.Error("Cumulated distances of all stations resulted in 0.0f");
 				return;
 			}
-			distanceReductionFactor = legacyTotalDistances / totalDistances;
+			DistanceReductionFactor = legacyTotalDistances / totalDistances;
 		}
 
 		public static void Clear()
 		{
 			nodes.Clear();
-			built = false;
+			IsBuilt = false;
 		}
 
-		private static void Build(IEnumerable<RailTrack> railTracks)
+		private static void Build(RailTrack[] railTracks)
 		{
 			nodes.Clear();
-			nodes.Capacity = railTracks.Count();
+			nodes.Capacity = railTracks.Length * 2; // Set capacity to upper limit
 
 			// Map from position to node id to aggregate
 			// similar endpoints of edges into the same node.
-			var nodeIndex = new Dictionary<(int, int), int>();
+			Dictionary<QuantizedPosition, int> nodeIndex = new();
 
 			foreach (RailTrack railTrack in railTracks)
 			{
-				var curve = railTrack.curve;
+				BezierCurve curve = railTrack.curve;
 				int pointCount = curve.pointCount;
 
 				if (pointCount < 2)
 				{
-					Main.Warning($"Invalid railtrack: curve should consist of at least two points, but was {pointCount}");
+					Main.Warning($"Invalid railtrack: curve should consist of at least two points, but has {pointCount}");
 					continue;
 				}
-
 
 				float length = 0f;
 				for (int i = 0; i < pointCount - 1; i++)
@@ -130,33 +152,21 @@ namespace DistanceCalculation.Logic
 				int startId = GetOrAddNode(nodeIndex, curve[0].position - OriginShift.currentMove);
 				int endId = GetOrAddNode(nodeIndex, curve.Last().position - OriginShift.currentMove);
 
-
 				// Add both forward and backward edge for
 				// simpler path finding implementation.
 				AddEdge(startId, endId, length);
 				AddEdge(endId, startId, length);
-
 			}
+
+			nodes.TrimExcess();
 		}
 
-		static int GetOrAddNode(Dictionary<(int, int), int> nodeIndex, Vector3 position)
+		private static int GetOrAddNode(Dictionary<QuantizedPosition, int> nodeIndex, Vector3 position)
 		{
-			if (nodeIndex.TryGetValue(((int)position.x, (int)position.z), out int id))
+			QuantizedPosition quantizedPosition = Quantize(position);
+			if (TryGetNode(nodeIndex, position, quantizedPosition, out int id))
 			{
 				return id;
-			}
-
-			const float mergeEpsilon = 0.1f;
-
-			// TODO: replace with spatial hashing
-			for (int i = 0; i < nodes.Count; i++)
-			{
-				if (Math.Abs(nodes[i].Position.x - position.x) <= mergeEpsilon && Math.Abs(nodes[i].Position.z - position.z) <= mergeEpsilon)
-				{
-					id = nodes[i].Id;
-					nodeIndex[((int)position.x, (int)position.z)] = id;
-					return id;
-				}
 			}
 
 			id = nodes.Count;
@@ -164,10 +174,46 @@ namespace DistanceCalculation.Logic
 			{
 				Id = id,
 				Position = position,
-				OutgoingEdges = new Edge[3]
+				OutgoingEdges = new(3)
 			});
-			nodeIndex[((int)position.x, (int)position.z)] = id;
+			nodeIndex[quantizedPosition] = id;
 			return id;
+		}
+
+		private static bool TryGetNode(Dictionary<QuantizedPosition, int> nodeIndex, Vector3 position, QuantizedPosition quantizedPosition, out int id)
+		{
+			const float mergeEpsilon = 0.1f;
+			const int quantizedEpsilon = 1;
+			IEnumerable<int> range = Enumerable.Range(-quantizedEpsilon, 2 * quantizedEpsilon + 1);
+
+			// Check exact cell
+			if (nodeIndex.TryGetValue(quantizedPosition, out id)
+				&& Math.Abs(nodes[id].Position.x - position.x) <= mergeEpsilon
+				&& Math.Abs(nodes[id].Position.z - position.z) <= mergeEpsilon)
+			{
+				return true;
+			}
+
+			// Check neighbors
+			foreach (int dx in range)
+			{
+				foreach (int dz in range)
+				{
+					// Already checked
+					if (dx == 0 && dz == 0) continue;
+
+					QuantizedPosition shifted = Shift(quantizedPosition, dx, dz);
+					if (nodeIndex.TryGetValue(shifted, out id)
+						&& Math.Abs(nodes[id].Position.x - position.x) <= mergeEpsilon
+						&& Math.Abs(nodes[id].Position.z - position.z) <= mergeEpsilon)
+					{
+						Main.Warning("This was a bit harder");
+						return true;
+					}
+				}
+			}
+
+			return false;
 		}
 
 		static void AddEdge(int fromId, int toId, float length)
@@ -176,11 +222,10 @@ namespace DistanceCalculation.Logic
 			{
 				FromId = fromId,
 				ToId = toId,
-				Length = length
+				Length = length,
 			};
 			var node = nodes[fromId];
-			node.OutgoingEdges[node.OutgoingEdgesLen] = edge;
-			node.OutgoingEdgesLen++;
+			node.OutgoingEdges.Add(edge);
 		}
 
 		public static int FindNearestNode(Vector3 position)

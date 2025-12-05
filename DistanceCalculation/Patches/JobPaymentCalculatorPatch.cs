@@ -20,8 +20,9 @@ namespace DistanceCalculation.Patches
 		{
 			// If there was an error during graph generation,
 			// fallback to the default distance calculation.
-			if (!RailGraph.built)
+			if (!RailGraph.IsBuilt)
 			{
+				Main.Warning("The rail graph has not been built; falling back to default distance calculation.");
 				return true;
 			}
 
@@ -37,16 +38,18 @@ namespace DistanceCalculation.Patches
 				return true;
 			}
 
-			float? distance = PathFinding.FindShortestDistance(startNode, destinationNode);
-			if (distance == null)
-			{
-				return true;
-			}
-
 			float originalDistance = Vector3.Distance(startStation.transform.position, destinationStation.transform.position);
-			__result = (float)distance;
 
-			return false;
+			float? distance = PathFinding.FindShortestDistance(startNode, destinationNode);
+			switch (distance)
+			{
+				case null:
+					return true;
+				case { } d:
+					__result = d;
+					Main.Log($"Original distance: {originalDistance}, new distance: {__result}");
+					return false;
+			}
 		}
 	}
 }

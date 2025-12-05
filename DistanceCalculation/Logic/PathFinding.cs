@@ -5,18 +5,18 @@ namespace DistanceCalculation.Logic
 	public static class PathFinding
 	{
 		// Memoization
-		public static Dictionary<(int, int), float> cache = new Dictionary<(int, int), float>();
+		private static readonly Dictionary<(int, int), float> Cache = new Dictionary<(int, int), float>();
 
 		public static void Clear()
 		{
-			cache.Clear();
+			Cache.Clear();
 		}
 
 		// Simple implementation of Dijkstra's Algorithm
 		// that returns the minimal distance between two nodes.
 		public static float? FindShortestDistance(int startId, int targetId)
 		{
-			if (cache.TryGetValue((startId, targetId), out float distance))
+			if (Cache.TryGetValue((startId, targetId), out float distance))
 			{
 				return distance;
 			}
@@ -50,7 +50,7 @@ namespace DistanceCalculation.Logic
 					}
 				}
 
-				if (u == -1 || bestDist == float.PositiveInfinity) break; // no more reachable nodes
+				if (u == -1 || float.IsPositiveInfinity(bestDist)) break; // no more reachable nodes
 
 				visited[u] = true;
 				if (u == targetId) break; // we reached the target
@@ -77,8 +77,8 @@ namespace DistanceCalculation.Logic
 			}
 
 
-			cache[(startId, targetId)] = dist[targetId];
-			cache[(targetId, startId)] = dist[targetId];
+			Cache[(startId, targetId)] = dist[targetId];
+			Cache[(targetId, startId)] = dist[targetId];
 			return dist[targetId];
 		}
 	}
