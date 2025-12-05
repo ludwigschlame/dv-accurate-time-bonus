@@ -27,6 +27,8 @@ namespace DistanceCalculation
 			ModEntry.Logger.Error(msg);
 		}
 
+		private static Harmony? _harmony;
+
 		private static bool Load(UnityModManager.ModEntry modEntry)
 		{
 			ModEntry = modEntry;
@@ -34,16 +36,15 @@ namespace DistanceCalculation
 
 			Settings = UnityModManager.ModSettings.Load<Settings.ModSettings>(ModEntry);
 
-			Harmony? harmony = null;
 			try
 			{
-				harmony = new Harmony(modEntry.Info.Id);
-				harmony.PatchAll(Assembly.GetExecutingAssembly());
+				_harmony = new Harmony(modEntry.Info.Id);
+				_harmony.PatchAll(Assembly.GetExecutingAssembly());
 			}
 			catch (Exception ex)
 			{
 				Error($"Failed to load {modEntry.Info.DisplayName}:", ex);
-				harmony?.UnpatchAll(modEntry.Info.Id);
+				_harmony?.UnpatchAll(modEntry.Info.Id);
 				return false;
 			}
 
@@ -55,6 +56,7 @@ namespace DistanceCalculation
 		{
 			RailGraph.Clear();
 			PathFinding.Clear();
+			_harmony?.UnpatchAll(modEntry.Info.Id);
 			return true;
 		}
 
