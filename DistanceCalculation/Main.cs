@@ -10,7 +10,7 @@ namespace DistanceCalculation
 	public static class Main
 	{
 		public static UnityModManager.ModEntry ModEntry { get; private set; } = null!;
-		public static Settings.ModSettings Settings { get; private set; } = null!;
+		public static Settings.ADCModSettings Settings { get; private set; } = null!;
 		public static bool Enabled => ModEntry.Active;
 
 		public static void Log(string msg) => ModEntry.Logger.Log(msg);
@@ -29,7 +29,10 @@ namespace DistanceCalculation
 			ModEntry = modEntry;
 			modEntry.OnUnload = Unload;
 
-			Settings = UnityModManager.ModSettings.Load<Settings.ModSettings>(ModEntry);
+			Settings = UnityModManager.ModSettings.Load<Settings.ADCModSettings>(ModEntry);
+
+			ModEntry.OnGUI = DrawGUI;
+			ModEntry.OnSaveGUI = SaveGUI;
 
 			RailGraph.TryBuildRailGraph();
 
