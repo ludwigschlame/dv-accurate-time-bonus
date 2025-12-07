@@ -1,26 +1,52 @@
+using DistanceCalculation.Logic;
+using DV.OriginShift;
 using HarmonyLib;
+using UnityEngine;
 
-namespace DistanceCalculation.Patches
+namespace DistanceCalculation.Patches;
+
+[HarmonyPatch(typeof(JobPaymentCalculator))]
+internal class JobPaymentCalculatorPatch
 {
-	[HarmonyPatch(typeof(JobPaymentCalculator))]
-	internal class JobPaymentCalculatorPatch
+	[HarmonyPatch(nameof(JobPaymentCalculator.GetDistanceBetweenStations))]
+	[HarmonyPrefix]
+	public static bool GetDistanceBetweenStationsPrefix(
+		StationController startStation,
+		StationController destinationStation,
+		ref float __result
+	)
 	{
-		[HarmonyPatch(nameof(JobPaymentCalculator.GetDistanceBetweenStations))]
-		[HarmonyPrefix]
-		public static bool GetDistanceBetweenStationsPrefix(
-			StationController startStation,
-			StationController destinationStation,
-			ref float __result
-		)
+		// If there was an error during graph generation,
+		// fallback to the default distance calculation.
+		if (RailGraph.State != RailGraphState.Built)
 		{
-			var startStationId = startStation.stationInfo.YardID;
-			var destinationStationId1 = destinationStation.stationInfo.YardID;
+			Main.Warning("The rail graph has not been built; falling back to default distance calculation.");
+			return true;
+		}
 
-			Main.Log($"GetDistanceBetweenStationsPrefix called between {startStationId} and {destinationStationId1}");
+		Vector3 startStationPos = startStation.transform.position - OriginShift.currentMove;
+		Vector3 destinationPos = destinationStation.transform.position - OriginShift.currentMove;
 
-			__result = 1_000f;
+		int startNode = RailGraph.FindNearestNode(startStationPos);
+		int destinationNode = RailGraph.FindNearestNode(destinationPos);
 
-			return false;
+		if (startNode < 0 || destinationNode < 0)
+		{
+			Main.Warning($"Could not map stations to graph nodes (start:{startNode}, end:{destinationNode}).");
+			return true;
+		}
+
+		float originalDistance = Vector3.Distance(startStation.transform.position, destinationStation.transform.position);
+
+		float? distance = PathFinding.FindShortestDistance(startNode, destinationNode);
+		switch (distance)
+		{
+			case null:
+				return true;
+			case { } d:
+				__result = d * RailGraph.DistanceScalingFactor;
+				Main.Log($"{startStation.stationInfo.YardID}-{destinationStation.stationInfo.YardID}: Original distance: {originalDistance}, new distance: {__result}");
+				return false;
 		}
 	}
 }
