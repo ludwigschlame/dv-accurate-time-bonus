@@ -1,36 +1,20 @@
-using HarmonyLib;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
-using DV.Utils;
-using DV.UI;
+using System.Collections;
 using DistanceCalculation.Logic;
+using HarmonyLib;
 
-namespace DistanceCalculation.Patches
+namespace DistanceCalculation.Patches;
+
+[HarmonyPatch(typeof(WorldStreamingInit))]
+public static class WorldStreamingInitPatch
 {
-	[HarmonyPatch(typeof(WorldStreamingInit))]
-	public static class Patch_WorldStreamingInit_LoadingRoutine
+	[HarmonyPatch(nameof(WorldStreamingInit.LoadingRoutine))]
+	[HarmonyPostfix]
+	static IEnumerator LoadingRoutinePostfix(IEnumerator __result)
 	{
-		[HarmonyPatch(nameof(WorldStreamingInit.LoadingRoutine))]
-		[HarmonyTranspiler]
-		public static IEnumerable<CodeInstruction> TranspileLoadingRoutine(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+		while (__result.MoveNext())
 		{
-			foreach (var instruction in instructions)
-			{
-				yield return instruction;
-				if (!RailGraph.built)
-				{
-					RailTrackRegistry? registry = UnityEngine.Object.FindObjectOfType<RailTrackRegistry>();
-					if (registry != null)
-					{
-						RailGraph.BuildGraph();
-					}
-				}
-			}
-			
+			yield return __result.Current;
+			RailGraph.TryBuildRailGraph();
 		}
 	}
 }

@@ -1,12 +1,7 @@
 using DistanceCalculation.Logic;
 using HarmonyLib;
-using Microsoft.Win32;
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
-using UnityEngine;
 using UnityModManagerNet;
 
 namespace DistanceCalculation
@@ -35,6 +30,8 @@ namespace DistanceCalculation
 			modEntry.OnUnload = Unload;
 
 			Settings = UnityModManager.ModSettings.Load<Settings.ModSettings>(ModEntry);
+
+			RailGraph.TryBuildRailGraph();
 
 			try
 			{
