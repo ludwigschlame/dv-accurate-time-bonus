@@ -2,6 +2,7 @@ using DistanceCalculation.Logic;
 using DV.OriginShift;
 using HarmonyLib;
 using UnityEngine;
+using DistanceCalculation.Settings;
 
 namespace DistanceCalculation.Patches;
 
@@ -44,7 +45,7 @@ internal class JobPaymentCalculatorPatch
 			case null:
 				return true;
 			case { } d:
-				__result = d * RailGraph.DistanceScalingFactor;
+				__result = d * (Main.Settings.UseDistanceBalancing ? RailGraph.DistanceScalingFactor : 1.0f);
 				Main.Log($"{startStation.stationInfo.YardID}-{destinationStation.stationInfo.YardID}: Original distance: {originalDistance}, new distance: {__result}");
 				return false;
 		}
