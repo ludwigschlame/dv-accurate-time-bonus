@@ -204,8 +204,6 @@ public static class RailGraph
 			AddEdge(startId, endId, length);
 			AddEdge(endId, startId, length);
 		}
-
-		nodes.TrimExcess();
 	}
 
 	private static int GetOrAddNode(Dictionary<QuantizedPosition, int> nodeIndex, Vector3 position)
