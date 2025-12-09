@@ -2,7 +2,6 @@ using DistanceCalculation.Logic;
 using DV.OriginShift;
 using HarmonyLib;
 using UnityEngine;
-using DistanceCalculation.Settings;
 
 namespace DistanceCalculation.Patches;
 
@@ -25,29 +24,25 @@ internal class JobPaymentCalculatorPatch
 			return true;
 		}
 
-		Vector3 startStationPos = startStation.transform.position - OriginShift.currentMove;
-		Vector3 destinationPos = destinationStation.transform.position - OriginShift.currentMove;
-
-		int startNode = RailGraph.FindNearestNode(startStationPos);
-		int destinationNode = RailGraph.FindNearestNode(destinationPos);
-
-		if (startNode < 0 || destinationNode < 0)
+		if (!RailGraph.FindNearestNodeToStation(startStation, out int startNode) ||
+		    !RailGraph.FindNearestNodeToStation(destinationStation, out int destinationNode))
 		{
-			Main.Warning($"Could not map stations to graph nodes (start:{startNode}, end:{destinationNode}).");
+			Main.Warning(
+				$"Could not map stations to graph nodes (start: {startStation.stationInfo.YardID}, destination: {destinationStation.stationInfo.YardID}).");
 			return true;
 		}
 
-		float originalDistance = Vector3.Distance(startStation.transform.position, destinationStation.transform.position);
+		float originalDistance =
+			Vector3.Distance(startStation.transform.position, destinationStation.transform.position);
 
-		float? distance = PathFinding.FindShortestDistance(startNode, destinationNode);
-		switch (distance)
+		if (!PathFinding.FindShortestDistance(startNode, destinationNode, out float d))
 		{
-			case null:
-				return true;
-			case { } d:
-				__result = d * (Main.Settings.UseDistanceBalancing ? RailGraph.DistanceScalingFactor : 1.0f);
-				Main.Log($"{startStation.stationInfo.YardID}-{destinationStation.stationInfo.YardID}: Original distance: {originalDistance}, new distance: {__result}");
-				return false;
+			return true;
 		}
+
+		__result = d * (Main.Settings.UseDistanceBalancing ? RailGraph.DistanceScalingFactor : 1.0f);
+		Main.Log(
+			$"{startStation.stationInfo.YardID}-{destinationStation.stationInfo.YardID}: Original distance: {originalDistance}, new distance: {__result}");
+		return false;
 	}
 }
