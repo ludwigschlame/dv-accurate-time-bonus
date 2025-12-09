@@ -1,8 +1,8 @@
 {
-  "Id": "DistanceCalculation",
+  "Id": "AccurateTimeBonus",
   "Version": "1.0.0",
-  "DisplayName": "DistanceCalculation",
-  "Author": "MOD_AUTHOR",
+  "DisplayName": "AccurateTimeBonus",
+  "Author": "DVG Connoisseurs",
   "EntryMethod": "DistanceCalculation.Main.Load",
   "ManagerVersion": "0.27.3",
   "Repository": "https://raw.githubusercontent.com/ludwigschlame/dv-distance-calculation/main/repository.json"

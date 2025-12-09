@@ -8,14 +8,14 @@ using UnityModManagerNet;
 
 namespace DistanceCalculation.Settings
 {
-	public class ADCModSettings : UnityModManager.ModSettings, IDrawable
+	public class ATBModSettings : UnityModManager.ModSettings, IDrawable
 	{
 
-		[Draw("Adjust new distance calculation to preserve bonus time and payout balancing")]
+		[Draw("Adjust new distance calculation to preserve time bonus and payout balancing")]
 		public bool UseDistanceBalancing = true;
 
 		[XmlIgnore]
-		public Action<ADCModSettings>? OnSettingsSaved;
+		public Action<ATBModSettings>? OnSettingsSaved;
 
 		public override void Save(UnityModManager.ModEntry modEntry)
 		{
