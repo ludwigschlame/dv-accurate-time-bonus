@@ -1,85 +1,120 @@
 using System.Collections.Generic;
 
-namespace DistanceCalculation.Logic
-{
-	public static class PathFinding
-	{
-		// Memoization
-		private static readonly Dictionary<(int, int), float> Cache = new Dictionary<(int, int), float>();
+namespace DistanceCalculation.Logic;
 
-		public static void Clear()
+public static class PathFinding
+{
+	// Memoization
+	private static readonly Dictionary<(int, int), float> Cache = new();
+
+	public static void Clear()
+	{
+		Cache.Clear();
+	}
+
+	// Simple implementation of Dijkstra's Algorithm
+	// that returns the minimal distance between two nodes.
+	public static bool FindShortestDistance(int startId, int targetId, out float distance)
+	{
+		if (Cache.TryGetValue((startId, targetId), out distance))
 		{
-			Cache.Clear();
+			return true;
 		}
 
-		// Simple implementation of Dijkstra's Algorithm
-		// that returns the minimal distance between two nodes.
-		public static float? FindShortestDistance(int startId, int targetId)
+		FindShortestDistances(startId, [targetId]);
+		if (Cache.TryGetValue((startId, targetId), out distance))
 		{
-			if (Cache.TryGetValue((startId, targetId), out float distance))
+			return true;
+		}
+
+		Main.Error($"Could not find path between {startId} and {targetId}");
+		return false;
+	}
+
+	public static void FindShortestDistances(int startId, HashSet<int> targetIds)
+	{
+		targetIds.Remove(startId);
+		targetIds.RemoveWhere(targetId => Cache.ContainsKey((startId, targetId)));
+		if (targetIds.Count == 0)
+		{
+			return;
+		}
+
+		int nodeCount = RailGraph.Nodes.Count;
+		float[] distances = new float[nodeCount];
+		bool[] visited = new bool[nodeCount];
+
+		for (int i = 0; i < nodeCount; i++)
+		{
+			distances[i] = float.PositiveInfinity;
+		}
+
+		distances[startId] = 0.0f;
+
+		int remainingTargets = targetIds.Count;
+		for (int step = 0; step < nodeCount; step++)
+		{
+			// Find unvisited node with the smallest distance
+			int currentNode = -1;
+			float bestDistance = float.PositiveInfinity;
+
+			for (int i = 0; i < nodeCount; i++)
 			{
-				return distance;
-			}
-
-			int n = RailGraph.Nodes.Count;
-			var dist = new float[n];
-			var prev = new int[n];
-			var visited = new bool[n];
-
-			for (int i = 0; i < n; i++)
-			{
-				dist[i] = float.PositiveInfinity;
-				prev[i] = -1;
-			}
-
-			dist[startId] = 0f;
-
-			for (int step = 0; step < n; step++)
-			{
-				int u = -1;
-				float bestDist = float.PositiveInfinity;
-
-				// pick nearest unvisited node
-				for (int i = 0; i < n; i++)
+				if (!visited[i] && distances[i] < bestDistance)
 				{
-					if (visited[i]) continue;
-					if (dist[i] < bestDist)
-					{
-						bestDist = dist[i];
-						u = i;
-					}
-				}
-
-				if (u == -1 || float.IsPositiveInfinity(bestDist)) break; // no more reachable nodes
-
-				visited[u] = true;
-				if (u == targetId) break; // we reached the target
-
-				// relax edges starting at u
-				foreach (var edge in RailGraph.Nodes[u].OutgoingEdges)
-				{
-					int v = edge.ToId;
-					if (visited[v]) continue;
-
-					float alt = dist[u] + edge.Length;
-					if (alt < dist[v])
-					{
-						dist[v] = alt;
-						prev[v] = u;
-					}
+					bestDistance = distances[i];
+					currentNode = i;
 				}
 			}
 
-			if (prev[targetId] == -1 && startId != targetId)
+			// No reachable node left
+			if (currentNode == -1 || float.IsPositiveInfinity(bestDistance))
+			{
+				break;
+			}
+
+			visited[currentNode] = true;
+
+			// Check if a target node has been settled
+			if (targetIds.Contains(currentNode))
+			{
+				remainingTargets--;
+				// Exit early if all target nodes have been settled
+				if (remainingTargets == 0)
+				{
+					break;
+				}
+			}
+
+			// Relax outgoing edges
+			foreach (RailGraph.Edge edge in RailGraph.Nodes[currentNode].OutgoingEdges)
+			{
+				int neighborNode = edge.ToId;
+				if (visited[neighborNode])
+				{
+					continue;
+				}
+
+				float altDistance = distances[currentNode] + edge.Length;
+				if (altDistance < distances[neighborNode])
+				{
+					distances[neighborNode] = altDistance;
+				}
+			}
+		}
+
+		// Cache all requested target distances
+		foreach (int targetId in targetIds)
+		{
+			float distance = distances[targetId];
+			if (float.IsPositiveInfinity(distance))
 			{
 				Main.Error($"Could not find path between {startId} and {targetId}");
-				return null;
+				continue;
 			}
 
-
-			Cache[(startId, targetId)] = dist[targetId];
-			Cache[(targetId, startId)] = dist[targetId];
-			return dist[targetId];
+			Cache[(startId, targetId)] = distance;
+			Cache[(targetId, startId)] = distance;
 		}
 	}
 }
