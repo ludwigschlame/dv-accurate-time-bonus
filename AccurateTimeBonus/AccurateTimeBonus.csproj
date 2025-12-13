@@ -18,22 +18,12 @@
 
 	<!-- Derail Valley -->
 	<ItemGroup>
-		<Reference Include="0Harmony">
-		  <HintPath>D:\SteamLibrary\steamapps\common\Derail Valley\DerailValley_Data\Managed\UnityModManager\0Harmony.dll</HintPath>
-		</Reference>
+		<Reference Include="0Harmony" />
 		<Reference Include="Assembly-CSharp" />
-		<Reference Include="BezierCurves">
-		  <HintPath>D:\SteamLibrary\steamapps\common\Derail Valley\DerailValley_Data\Managed\BezierCurves.dll</HintPath>
-		</Reference>
-		<Reference Include="DV.OriginShiftInfo">
-		  <HintPath>D:\SteamLibrary\steamapps\common\Derail Valley\DerailValley_Data\Managed\DV.OriginShiftInfo.dll</HintPath>
-		</Reference>
-		<Reference Include="DV.RailTrack">
-		  <HintPath>D:\SteamLibrary\steamapps\common\Derail Valley\DerailValley_Data\Managed\DV.RailTrack.dll</HintPath>
-		</Reference>
-		<Reference Include="DV.Utils">
-		  <HintPath>D:\SteamLibrary\steamapps\common\Derail Valley\DerailValley_Data\Managed\DV.Utils.dll</HintPath>
-		</Reference>
+		<Reference Include="BezierCurves" />
+		<Reference Include="DV.OriginShiftInfo" />
+		<Reference Include="DV.RailTrack" />
+		<Reference Include="DV.Utils" />
 	</ItemGroup>
 
 	<!-- Unity -->
@@ -44,7 +34,7 @@
 
 	<!-- Mod Loader -->
 	<ItemGroup>
-		<PackageReference Include="UnityModManager" Version="0.27.2" />
+		<PackageReference Include="UnityModManager" Version="0.27.3" />
 	</ItemGroup>
 
 	<!-- Null Checking -->
@@ -55,7 +45,10 @@
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<!-- Copy to build folder -->
-		<Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DvInstallDir)\Mods\AccurateTimeBonus\" />
+		<Copy SourceFiles="$(TargetPath)" DestinationFolder="$(SolutionDir)build/" />
+
+		<!-- Copy to Derail Valley mods folder -->
+		<Copy SourceFiles="$(TargetPath);$(SolutionDir)info.json" DestinationFolder="$(DvInstallDir)/Mods/AccurateTimeBonus/" />
 
 		<!-- Package after Release build -->
 		<Exec Condition="'$(ConfigurationName)' == 'Release' And '$(OS)' == 'Windows_NT'" Command="powershell -executionpolicy bypass -Command &quot;(../package.ps1)&quot;" />
