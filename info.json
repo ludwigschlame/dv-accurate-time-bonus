@@ -3,7 +3,7 @@
   "Version": "1.0.0",
   "DisplayName": "AccurateTimeBonus",
   "Author": "DVG Connoisseurs",
-  "EntryMethod": "DistanceCalculation.Main.Load",
+  "EntryMethod": "AccurateTimeBonus.Main.Load",
   "ManagerVersion": "0.27.3",
-  "Repository": "https://raw.githubusercontent.com/ludwigschlame/dv-distance-calculation/main/repository.json"
+  "Repository": "https://raw.githubusercontent.com/ludwigschlame/dv-accurate-time-bonus/main/repository.json"
 }
