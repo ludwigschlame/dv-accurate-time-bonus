@@ -4,6 +4,6 @@
   "DisplayName": "AccurateTimeBonus",
   "Author": "DVG Connoisseurs",
   "EntryMethod": "AccurateTimeBonus.Main.Load",
-  "ManagerVersion": "0.27.3",
+  "ManagerVersion": "0.27.2",
   "Repository": "https://raw.githubusercontent.com/ludwigschlame/dv-accurate-time-bonus/main/repository.json"
 }
