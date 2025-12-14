@@ -4,71 +4,70 @@ using System;
 using System.Reflection;
 using UnityModManagerNet;
 
-namespace AccurateTimeBonus
+namespace AccurateTimeBonus;
+
+[EnableReloading]
+public static class Main
 {
-	[EnableReloading]
-	public static class Main
+	public static UnityModManager.ModEntry ModEntry { get; private set; } = null!;
+	public static Settings.ATBModSettings Settings { get; private set; } = null!;
+	public static bool Enabled => ModEntry.Active;
+
+	public static void Log(string msg) => ModEntry.Logger.Log(msg);
+	public static void Warning(string msg) => ModEntry.Logger.Warning(msg);
+	public static void Error(string msg) => ModEntry.Logger.Error(msg);
+
+	public static void Error(string msg, Exception ex)
 	{
-		public static UnityModManager.ModEntry ModEntry { get; private set; } = null!;
-		public static Settings.ATBModSettings Settings { get; private set; } = null!;
-		public static bool Enabled => ModEntry.Active;
+		ModEntry.Logger.Error(msg);
+		ModEntry.Logger.LogException(ex);
+	}
 
-		public static void Log(string msg) => ModEntry.Logger.Log(msg);
-		public static void Warning(string msg) => ModEntry.Logger.Warning(msg);
-		public static void Error(string msg) => ModEntry.Logger.Error(msg);
+	private static Harmony? _harmony;
 
-		public static void Error(string msg, Exception ex)
+	private static bool Load(UnityModManager.ModEntry modEntry)
+	{
+		ModEntry = modEntry;
+		modEntry.OnUnload = Unload;
+
+		Settings = UnityModManager.ModSettings.Load<Settings.ATBModSettings>(ModEntry);
+
+		ModEntry.OnGUI = DrawGUI;
+		ModEntry.OnSaveGUI = SaveGUI;
+
+		RailGraph.TryBuildRailGraph();
+
+		try
 		{
-			ModEntry.Logger.Error(msg);
-			ModEntry.Logger.LogException(ex);
+			_harmony = new Harmony(modEntry.Info.Id);
+			_harmony.PatchAll(Assembly.GetExecutingAssembly());
 		}
-
-		private static Harmony? _harmony;
-
-		private static bool Load(UnityModManager.ModEntry modEntry)
+		catch (Exception ex)
 		{
-			ModEntry = modEntry;
-			modEntry.OnUnload = Unload;
-
-			Settings = UnityModManager.ModSettings.Load<Settings.ATBModSettings>(ModEntry);
-
-			ModEntry.OnGUI = DrawGUI;
-			ModEntry.OnSaveGUI = SaveGUI;
-
-			RailGraph.TryBuildRailGraph();
-
-			try
-			{
-				_harmony = new Harmony(modEntry.Info.Id);
-				_harmony.PatchAll(Assembly.GetExecutingAssembly());
-			}
-			catch (Exception ex)
-			{
-				Error($"Failed to load {modEntry.Info.DisplayName}:", ex);
-				_harmony?.UnpatchAll(modEntry.Info.Id);
-				return false;
-			}
-
-			Log("AccurateTimeBonus mod loaded.");
-			return true;
-		}
-
-		static bool Unload(UnityModManager.ModEntry modEntry)
-		{
-			RailGraph.Clear();
-			PathFinding.Clear();
+			Error($"Failed to load {modEntry.Info.DisplayName}:", ex);
 			_harmony?.UnpatchAll(modEntry.Info.Id);
-			return true;
+			return false;
 		}
 
-		static void DrawGUI(UnityModManager.ModEntry entry)
-		{
-			Settings.Draw(entry);
-		}
+		Log("AccurateTimeBonus mod loaded.");
+		return true;
+	}
 
-		static void SaveGUI(UnityModManager.ModEntry entry)
-		{
-			Settings.Save(entry);
-		}
+	static bool Unload(UnityModManager.ModEntry modEntry)
+	{
+		RailGraph.Clear();
+		PathFinding.Clear();
+		_harmony?.UnpatchAll(modEntry.Info.Id);
+		return true;
+	}
+
+	static void DrawGUI(UnityModManager.ModEntry entry)
+	{
+		Settings.Draw(entry);
+	}
+
+	static void SaveGUI(UnityModManager.ModEntry entry)
+	{
+		Settings.Save(entry);
 	}
 }
