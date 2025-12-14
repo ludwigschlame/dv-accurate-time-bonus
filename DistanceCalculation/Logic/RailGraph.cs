@@ -1,6 +1,7 @@
 using DV.OriginShift;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -17,6 +18,16 @@ public enum RailGraphState
 
 public static class RailGraph
 {
+	private static readonly List<Node> nodes = [];
+
+	// Cache nearest node to a YardId
+	private static readonly Dictionary<String, int> NearestNodeToYardIdCache = new();
+	public static IReadOnlyList<Node> Nodes => nodes;
+	public static RailGraphState State;
+
+	// The new distance between station calculation can only yield larger distances than before.
+	// A multiplier is introduced (config option) that tries to keep the current balancing.
+	public static float DistanceScalingFactor = 1.0f;
 
 	public struct Node
 	{
@@ -27,42 +38,38 @@ public static class RailGraph
 
 	public struct Edge
 	{
-		public int FromId;
 		public int ToId;
 		public float Length;
 	}
 
 	private record QuantizedPosition
 	{
-		public int X;
-		public int Z;
+		private int x;
+		private int z;
+
+		public static QuantizedPosition Quantize(Vector3 position)
+		{
+			return new QuantizedPosition
+			{
+				x = (int)position.x,
+				z = (int)position.z
+			};
+		}
+
+		public QuantizedPosition Shift(int dx, int dz)
+		{
+			return new QuantizedPosition
+			{
+				x = x + dx,
+				z = z + dz
+			};
+		}
 	}
 
-	private static readonly List<Node> nodes = [];
-	public static IReadOnlyList<Node> Nodes => nodes;
-	public static RailGraphState State;
-
-	// The new distance between station calculation can only yield larger distances than before.
-	// A multiplier is introduced (config option) that tries to keep the current balancing.
-	public static float DistanceScalingFactor = 1.0f;
-
-
-	private static QuantizedPosition Quantize(Vector3 position)
+	public static void Clear()
 	{
-		return new QuantizedPosition
-		{
-			X = (int)position.x,
-			Z = (int)position.z
-		};
-	}
-
-	private static QuantizedPosition Shift(QuantizedPosition position, int dx, int dz)
-	{
-		return new QuantizedPosition
-		{
-			X = position.X + dx,
-			Z = position.Z + dz
-		};
+		nodes.Clear();
+		State = RailGraphState.Uninitialized;
 	}
 
 	public static void TryBuildRailGraph()
@@ -72,99 +79,120 @@ public static class RailGraph
 			return;
 		}
 
-		RailTrackRegistry? registry = UnityEngine.Object.FindObjectOfType<RailTrackRegistry>();
-		if (registry == null || registry._logicToRailTrack == null || !registry._logicToRailTrack.Any())
+		RailTrackRegistry? trackRegistry = UnityEngine.Object.FindObjectOfType<RailTrackRegistry>();
+		if (trackRegistry == null || trackRegistry._logicToRailTrack == null || !trackRegistry._logicToRailTrack.Any())
+		{
+			return;
+		}
+
+		if (StationController.allStations == null || !StationController.allStations.Any())
 		{
 			return;
 		}
 
 		State = RailGraphState.InProgress;
-		Task.Run(() => BuildGraph(registry));
+		Task.Run(() =>
+		{
+			try
+			{
+				BuildGraph(trackRegistry);
+			}
+			catch (Exception e)
+			{
+				Main.Error("BuildGraph failed", e);
+				State = RailGraphState.Faulty;
+			}
+		});
 	}
 
 	private static void BuildGraph(RailTrackRegistry registry)
 	{
 		State = RailGraphState.InProgress;
-
-		try
-		{
-			Build(registry.OrderedRailtracks);
-		}
-		catch (Exception ex)
-		{
-			Main.Error("This is bad", ex);
-			State = RailGraphState.Faulty;
-			return;
-		}
-
+		Build(registry.OrderedRailtracks);
 		State = RailGraphState.Built;
 
-		if (GetDistanceScaling(out float factor))
+		if (!PrecomputeDistances())
 		{
-			DistanceScalingFactor = factor;
+			throw new Exception("Precompute failed");
 		}
-		else
+
+		if (!GetDistanceScaling(out DistanceScalingFactor))
 		{
-			State = RailGraphState.Faulty;
+			throw new Exception("Scaling failed");
 		}
+	}
+
+	private static bool PrecomputeDistances()
+	{
+		Stopwatch now = Stopwatch.StartNew();
+		List<StationController> stationList = StationController.allStations;
+		int stationCount = stationList.Count;
+
+		// Get nearest nearest node for all stations
+		int[] stationNode = new int[stationCount];
+		for (int i = 0; i < stationCount; i++)
+		{
+			if (FindNearestNodeToStation(stationList[i], out int nodeId))
+			{
+				stationNode[i] = nodeId;
+			}
+		}
+
+		for (int i = 0; i < stationCount - 1; i++)
+		{
+			int startNode = stationNode[i];
+			HashSet<int> targetNodes = stationNode.Skip(i + 1).ToHashSet();
+			PathFinding.FindShortestDistances(startNode, targetNodes);
+		}
+
+		Main.Log($"Precompute: {now.ElapsedMilliseconds} ms");
+		return true;
 	}
 
 	// Calculate the distances between all pairs of stations after graph building,
 	// so that the job generation can solely work with distance lookups from the cache.
 	private static bool GetDistanceScaling(out float distanceScalingFactor)
 	{
+		Stopwatch now = Stopwatch.StartNew();
 		distanceScalingFactor = 1.0f;
-		float totalDistances = 0.0f;
-		float legacyTotalDistances = 0.0f;
-		foreach (StationController startController in StationController.allStations)
+		float totalDistanceGraph = 0.0f;
+		float totalDistanceEuclid = 0.0f;
+
+		for (int i = 0; i < StationController.allStations.Count; i++)
 		{
-			// Due to the memoization, it does not matter that we calculate the distance
-			// between each pair of stations twice.
-			foreach (StationController destinationController in StationController.allStations)
+			StationController startStation = StationController.allStations[i];
+			for (int j = i + 1; j < StationController.allStations.Count; j++)
 			{
-				if (startController.stationInfo.YardID == destinationController.stationInfo.YardID)
+				StationController destinationStation = StationController.allStations[j];
+				Vector3 startPosition = startStation.transform.position - OriginShift.currentMove;
+				Vector3 destinationPosition = destinationStation.transform.position - OriginShift.currentMove;
+				if (!FindNearestNodeToStation(startStation, out int nodeA) ||
+				    !FindNearestNodeToStation(destinationStation, out int nodeB))
 				{
-					continue;
+					return false;
 				}
-				Vector3 startStationPos = startController.transform.position - OriginShift.currentMove;
-				Vector3 destinationPos = destinationController.transform.position - OriginShift.currentMove;
-				int startNode = FindNearestNode(startStationPos);
-				int destinationNode = FindNearestNode(destinationPos);
-				float? distance = PathFinding.FindShortestDistance(startNode, destinationNode);
-				switch (distance)
+
+				if (PathFinding.FindShortestDistance(nodeA, nodeB, out float distance))
 				{
-					case null:
-					{
-						Main.Error($"Could not calculate graph distance between {startController.stationInfo.YardID} and {destinationController.stationInfo.YardID}");
-						return false;
-					}
-					case { } d:
-					{
-						totalDistances += d;
-						legacyTotalDistances += Vector3.Distance(startController.transform.position, destinationController.transform.position);
-						break;
-					}
+					totalDistanceGraph += distance;
+					totalDistanceEuclid += Vector3.Distance(startPosition, destinationPosition);
+				}
+				else
+				{
+					return false;
 				}
 			}
 		}
-		if (totalDistances == 0.0f)
-		{
-			Main.Error("Cumulated distances of all stations resulted in 0.0f");
-			return false;
-		}
-		distanceScalingFactor = legacyTotalDistances / totalDistances;
-		Main.Log($"The distance reduction factor is {distanceScalingFactor}");
-		return true;
-	}
 
-	public static void Clear()
-	{
-		nodes.Clear();
-		State = RailGraphState.Uninitialized;
+		distanceScalingFactor = totalDistanceEuclid / totalDistanceGraph;
+		Main.Log($"Scaling: {now.ElapsedMilliseconds} ms ({distanceScalingFactor})");
+		return true;
 	}
 
 	private static void Build(RailTrack[] railTracks)
 	{
+		Stopwatch now = Stopwatch.StartNew();
+
 		nodes.Clear();
 		nodes.Capacity = railTracks.Length * 2; // Set capacity to upper limit
 
@@ -196,6 +224,7 @@ public static class RailGraph
 
 				length += ApproximateBezierLength(p0, p1, p2, p3);
 			}
+
 			int startId = GetOrAddNode(nodeIndex, curve[0].position - OriginShift.currentMove);
 			int endId = GetOrAddNode(nodeIndex, curve.Last().position - OriginShift.currentMove);
 
@@ -204,11 +233,13 @@ public static class RailGraph
 			AddEdge(startId, endId, length);
 			AddEdge(endId, startId, length);
 		}
+
+		Main.Log($"Build: {now.ElapsedMilliseconds} ms");
 	}
 
 	private static int GetOrAddNode(Dictionary<QuantizedPosition, int> nodeIndex, Vector3 position)
 	{
-		QuantizedPosition quantizedPosition = Quantize(position);
+		QuantizedPosition quantizedPosition = QuantizedPosition.Quantize(position);
 		if (TryGetNode(nodeIndex, position, quantizedPosition, out int id))
 		{
 			return id;
@@ -225,11 +256,12 @@ public static class RailGraph
 		return id;
 	}
 
-	private static bool TryGetNode(Dictionary<QuantizedPosition, int> nodeIndex, Vector3 position, QuantizedPosition quantizedPosition, out int id)
+	private static bool TryGetNode(Dictionary<QuantizedPosition, int> nodeIndex, Vector3 position,
+		QuantizedPosition quantizedPosition, out int id)
 	{
 		const float mergeEpsilon = 0.1f;
 		const int quantizedEpsilon = 1;
-		IEnumerable<int> range = Enumerable.Range(-quantizedEpsilon, 2 * quantizedEpsilon + 1);
+		int[] range = Enumerable.Range(-quantizedEpsilon, 2 * quantizedEpsilon + 1).ToArray();
 
 		// Check exact cell
 		if (nodeIndex.TryGetValue(quantizedPosition, out id)
@@ -247,7 +279,7 @@ public static class RailGraph
 				// Already checked
 				if (dx == 0 && dz == 0) continue;
 
-				QuantizedPosition shifted = Shift(quantizedPosition, dx, dz);
+				QuantizedPosition shifted = quantizedPosition.Shift(dx, dz);
 				if (nodeIndex.TryGetValue(shifted, out id)
 				    && Math.Abs(nodes[id].Position.x - position.x) <= mergeEpsilon
 				    && Math.Abs(nodes[id].Position.z - position.z) <= mergeEpsilon)
@@ -262,19 +294,35 @@ public static class RailGraph
 
 	static void AddEdge(int fromId, int toId, float length)
 	{
-		var edge = new Edge
+		Edge edge = new Edge
 		{
-			FromId = fromId,
 			ToId = toId,
 			Length = length,
 		};
-		var node = nodes[fromId];
+		Node node = nodes[fromId];
 		node.OutgoingEdges.Add(edge);
 	}
 
-	public static int FindNearestNode(Vector3 position)
+	public static bool FindNearestNodeToStation(StationController stationController, out int nodeId)
 	{
-		int bestId = -1;
+		if (NearestNodeToYardIdCache.TryGetValue(stationController.stationInfo.YardID, out nodeId))
+		{
+			return true;
+		}
+
+		Vector3 position = stationController.transform.position - OriginShift.currentMove;
+		if (FindNearestNode(position, out nodeId))
+		{
+			NearestNodeToYardIdCache[stationController.stationInfo.YardID] = nodeId;
+			return true;
+		}
+
+		return false;
+	}
+
+	private static bool FindNearestNode(Vector3 position, out int nodeId)
+	{
+		nodeId = -1;
 		float bestDist = float.MaxValue;
 
 		for (int i = 0; i < nodes.Count; i++)
@@ -283,14 +331,14 @@ public static class RailGraph
 			if (dist < bestDist)
 			{
 				bestDist = dist;
-				bestId = nodes[i].Id;
+				nodeId = nodes[i].Id;
 			}
 		}
 
-		return bestId;
+		return nodeId != -1;
 	}
 
-	static float ApproximateBezierLength(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3)
+	private static float ApproximateBezierLength(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3)
 	{
 		const int samples = 16;
 
@@ -308,7 +356,7 @@ public static class RailGraph
 		return length;
 	}
 
-	static Vector3 EvaluateCubic(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+	private static Vector3 EvaluateCubic(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
 	{
 		float u = 1f - t;
 		float uu = u * u;
@@ -322,5 +370,4 @@ public static class RailGraph
 		       3f * u * tt * p2 +
 		       ttt * p3;
 	}
-
 }

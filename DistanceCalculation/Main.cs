@@ -16,10 +16,11 @@ namespace DistanceCalculation
 		public static void Log(string msg) => ModEntry.Logger.Log(msg);
 		public static void Warning(string msg) => ModEntry.Logger.Warning(msg);
 		public static void Error(string msg) => ModEntry.Logger.Error(msg);
+
 		public static void Error(string msg, Exception ex)
 		{
-			ModEntry.Logger.LogException(ex);
 			ModEntry.Logger.Error(msg);
+			ModEntry.Logger.LogException(ex);
 		}
 
 		private static Harmony? _harmony;
