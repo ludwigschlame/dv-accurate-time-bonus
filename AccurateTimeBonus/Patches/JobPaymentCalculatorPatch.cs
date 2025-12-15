@@ -24,11 +24,17 @@ internal class JobPaymentCalculatorPatch
 			return true;
 		}
 
-		if (!RailGraph.FindNearestNodeToStation(startStation, out int startNode) ||
-		    !RailGraph.FindNearestNodeToStation(destinationStation, out int destinationNode))
+		string startYardID = startStation.stationInfo.YardID;
+		string destinationYardID = destinationStation.stationInfo.YardID;
+
+		if (!RailGraph.FindNearestNodeToStation(startStation, out int startNode))
 		{
-			Main.Warning(
-				$"Could not map stations to graph nodes (start: {startStation.stationInfo.YardID}, destination: {destinationStation.stationInfo.YardID}).");
+			Main.Warning($"Could not map station to graph node: {startYardID}");
+			return true;
+		}
+		if (!RailGraph.FindNearestNodeToStation(destinationStation, out int destinationNode))
+		{
+			Main.Warning($"Could not map station to graph node: {destinationYardID}.");
 			return true;
 		}
 
@@ -41,8 +47,7 @@ internal class JobPaymentCalculatorPatch
 		}
 
 		__result = d * (Main.Settings.UseDistanceBalancing ? RailGraph.DistanceScalingFactor : 1.0f);
-		Main.Log(
-			$"{startStation.stationInfo.YardID}-{destinationStation.stationInfo.YardID}: Original distance: {originalDistance}, new distance: {__result}");
+		Main.Debug($"{startYardID}-{destinationYardID}: {__result:0} m (was: {originalDistance:0} m)");
 		return false;
 	}
 }
