@@ -1,6 +1,7 @@
 using AccurateTimeBonus.Logic;
 using HarmonyLib;
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using UnityModManagerNet;
 
@@ -13,6 +14,9 @@ public static class Main
 	public static Settings.ATBModSettings Settings { get; private set; } = null!;
 	public static bool Enabled => ModEntry.Active;
 
+	/// Log a message only when compiled with debug profile.
+	[Conditional("DEBUG")]
+	public static void Debug(string msg) => ModEntry.Logger.Log("[Debug] " + msg);
 	public static void Log(string msg) => ModEntry.Logger.Log(msg);
 	public static void Warning(string msg) => ModEntry.Logger.Warning(msg);
 	public static void Error(string msg) => ModEntry.Logger.Error(msg);
@@ -49,7 +53,6 @@ public static class Main
 			return false;
 		}
 
-		Log("AccurateTimeBonus mod loaded.");
 		return true;
 	}
 

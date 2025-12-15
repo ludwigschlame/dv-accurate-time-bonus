@@ -120,6 +120,8 @@ public static class RailGraph
 		{
 			throw new Exception("Scaling failed");
 		}
+
+		Main.Log("Finished initializing graph");
 	}
 
 	private static bool PrecomputeDistances()
@@ -145,7 +147,7 @@ public static class RailGraph
 			PathFinding.FindShortestDistances(startNode, targetNodes);
 		}
 
-		Main.Log($"Precompute: {now.ElapsedMilliseconds} ms");
+		Main.Debug($"Finished precomputing distances: {stationCount:N0} stations ({now.ElapsedMilliseconds:n0} ms)");
 		return true;
 	}
 
@@ -185,7 +187,7 @@ public static class RailGraph
 		}
 
 		distanceScalingFactor = totalDistanceEuclid / totalDistanceGraph;
-		Main.Log($"Scaling: {now.ElapsedMilliseconds} ms ({distanceScalingFactor})");
+		Main.Debug($"Finished distance scaling: {distanceScalingFactor:P0} ({now.ElapsedMilliseconds:n0} ms)");
 		return true;
 	}
 
@@ -234,7 +236,7 @@ public static class RailGraph
 			AddEdge(endId, startId, length);
 		}
 
-		Main.Log($"Build: {now.ElapsedMilliseconds} ms");
+		Main.Debug($"Finished building graph: {nodes.Count:N0} nodes ({now.ElapsedMilliseconds:n0} ms)");
 	}
 
 	private static int GetOrAddNode(Dictionary<QuantizedPosition, int> nodeIndex, Vector3 position)
