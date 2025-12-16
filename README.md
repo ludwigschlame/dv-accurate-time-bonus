@@ -16,6 +16,7 @@ This option is provided, since the actual track distance between most stations i
 
 ## Roadmap
 - Include track curvatures, which correlate to the speed you can drive on a section, alongside the raw track length when determining time bonuses
+- Also take a look at shunting job time bonuses
 
 ## Contributing
 Please report bugs or improvement suggestions in the [mod's GitHub repository]().
