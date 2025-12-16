@@ -2,6 +2,8 @@
 
 Distance calculation based on actual track geometry making time bonuses and job payouts more consistent.
 
+![Derail Valley map showing a winding rail route from Sawmill to Harbor, illustrating that real track distance can be significantly longer than straight-line distance.](Banner.png)
+
 ## How it works
 Derail Valley uses straight-line distances between stations to calculate time bonuses and job payouts. 
 Depending on whether two stations are connected by a relatively straight rail segment or not, this makes some time bonuses very tight and others overly generous.
