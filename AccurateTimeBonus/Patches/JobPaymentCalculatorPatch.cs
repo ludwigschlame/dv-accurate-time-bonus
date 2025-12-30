@@ -41,13 +41,14 @@ internal class JobPaymentCalculatorPatch
 		float originalDistance =
 			Vector3.Distance(startStation.transform.position, destinationStation.transform.position);
 
-		if (!PathFinding.FindShortestDistance(startNode, destinationNode, out float d))
+		if (!PathFinding.FindShortestDistance(startNode, destinationNode, out float accurateDistance))
 		{
 			return true;
 		}
 
-		__result = d * (Main.Settings.UseDistanceBalancing ? RailGraph.DistanceScalingFactor : 1.0f);
-		Main.Debug($"{startYardID}-{destinationYardID}: {__result:0} m (was: {originalDistance:0} m)");
+		float balancedDistance = accurateDistance * RailGraph.DistanceScalingFactor;
+		__result = Main.Settings.UseDistanceBalancing ? balancedDistance : accurateDistance;
+		Main.Debug($"{startYardID}-{destinationYardID}: {accurateDistance:0} m (was: {originalDistance:0} m)");
 		return false;
 	}
 }
