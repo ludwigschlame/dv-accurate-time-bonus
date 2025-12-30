@@ -56,10 +56,15 @@ public static class Main
 		return true;
 	}
 
-	static bool Unload(UnityModManager.ModEntry modEntry)
+	public static void Clear()
 	{
 		RailGraph.Clear();
 		PathFinding.Clear();
+	}
+
+	static bool Unload(UnityModManager.ModEntry modEntry)
+	{
+		Clear();
 		_harmony?.UnpatchAll(modEntry.Info.Id);
 		return true;
 	}

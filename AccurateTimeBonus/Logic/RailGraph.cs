@@ -69,6 +69,7 @@ public static class RailGraph
 	public static void Clear()
 	{
 		nodes.Clear();
+		NearestNodeToYardIdCache.Clear();
 		State = RailGraphState.Uninitialized;
 	}
 
