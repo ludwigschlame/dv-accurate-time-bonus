@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update info.json and repository.json
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VER="${{ inputs.version }}"
+          FILE="AccurateTimeBonus_${VER}.zip"
+          DOWNLOAD_URL="https://github.com/ludwigschlame/dv-accurate-time-bonus/releases/download/${VER}/${FILE}"
+
+          tmp="$(mktemp)"
+          jq --arg ver "$VER" '.Version = $ver' info.json > "$tmp" && mv "$tmp" info.json
+
+          tmp="$(mktemp)"
+          jq --arg ver "$VER" --arg url "$DOWNLOAD_URL" '
+            .Releases =
+              [{
+                Id: "AccurateTimeBonus",
+                Version: $ver,
+                DownloadUrl: $url
+              }] + .Releases
+          ' repository.json > "$tmp" && mv "$tmp" repository.json
+
+      - name: Commit changes and tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet; then
+            echo "No changes detected. Aborting."
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add info.json repository.json
+          git commit -m "chore(release): ${{ inputs.version }}"
+
+          git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
+
+          git push origin HEAD
+          git push origin "${{ inputs.version }}"
+
+      - run: dotnet build -c Release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/AccurateTimeBonus_${{ inputs.version }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
