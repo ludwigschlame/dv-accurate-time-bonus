@@ -14,9 +14,16 @@ This makes time bonuses and job payouts more consistent and more in line with th
 Provides the option to adjust the mod's distance calculation to preserve vanilla-like average time bonuses. 
 This option is provided, since the actual track distance between most stations is significantly longer than the straight-line distance, making time bonuses and payouts significantly higher.
 
+## Mod Compatibility
+This mod should be compatible with most mods.
+If you are having problems, please disable the other mods to check if they are conflicting.
+
+Mods known to work:
+- [Mapify Continued](https://github.com/t0stiman/dv-mapify) (except for maps where not all stations are connected)
+
 ## Roadmap
 - Include track curvatures, which correlate to the speed you can drive on a section, alongside the raw track length when determining time bonuses
-- Also take a look at shunting job time bonuses
+- Rework shunting job time bonus calculation
 
 ## Contributing
-Please report bugs or improvement suggestions in the [mod's GitHub repository]().
+Please report bugs or improvement suggestions by creating an issue.
