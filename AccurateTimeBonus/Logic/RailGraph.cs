@@ -69,7 +69,13 @@ public static class RailGraph
 	public static void Clear()
 	{
 		nodes.Clear();
+		NearestNodeToYardIdCache.Clear();
 		State = RailGraphState.Uninitialized;
+	}
+
+	private static List<StationController> GetFilteredStationControllers()
+	{
+		return StationController.allStations.Where((x) => { return x != null; }).ToList();
 	}
 
 	public static void TryBuildRailGraph()
@@ -85,7 +91,7 @@ public static class RailGraph
 			return;
 		}
 
-		if (StationController.allStations == null || !StationController.allStations.Any())
+		if (StationController.allStations == null || !GetFilteredStationControllers().Any())
 		{
 			return;
 		}
@@ -127,7 +133,7 @@ public static class RailGraph
 	private static bool PrecomputeDistances()
 	{
 		Stopwatch now = Stopwatch.StartNew();
-		List<StationController> stationList = StationController.allStations;
+		List<StationController> stationList = GetFilteredStationControllers();
 		int stationCount = stationList.Count;
 
 		// Get nearest nearest node for all stations
@@ -160,12 +166,13 @@ public static class RailGraph
 		float totalDistanceGraph = 0.0f;
 		float totalDistanceEuclid = 0.0f;
 
-		for (int i = 0; i < StationController.allStations.Count; i++)
+		List<StationController> stationList = GetFilteredStationControllers();
+		for (int i = 0; i < stationList.Count; i++)
 		{
-			StationController startStation = StationController.allStations[i];
-			for (int j = i + 1; j < StationController.allStations.Count; j++)
+			StationController startStation = stationList[i];
+			for (int j = i + 1; j < stationList.Count; j++)
 			{
-				StationController destinationStation = StationController.allStations[j];
+				StationController destinationStation = stationList[j];
 				Vector3 startPosition = startStation.transform.position - OriginShift.currentMove;
 				Vector3 destinationPosition = destinationStation.transform.position - OriginShift.currentMove;
 				if (!FindNearestNodeToStation(startStation, out int nodeA) ||
