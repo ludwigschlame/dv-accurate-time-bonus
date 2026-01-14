@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   build:
@@ -40,10 +41,17 @@ jobs:
               }] + .Releases
           ' repository.json > "$tmp" && mv "$tmp" repository.json
 
-      - name: Commit changes and tag
+      - run: dotnet build -c Release
+
+      - name: Commit changes on release branch, open PR to main, tag
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+
+          VER="${{ inputs.version }}"
+          BRANCH="release/${VER}"
 
           if git diff --quiet; then
             echo "No changes detected. Aborting."
@@ -53,15 +61,29 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Create / reset release branch from current HEAD
+          git switch -c "$BRANCH" || git switch "$BRANCH"
+          git pull --ff-only origin "$BRANCH" || true
+
           git add info.json repository.json
-          git commit -m "chore(release): ${{ inputs.version }}"
+          git commit -m "release ${VER}"
 
-          git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
+          # Tag the release commit (tag points to the same commit that PR will merge)
+          git tag -a "${VER}" -m "release ${VER}"
 
-          git push origin HEAD
-          git push origin "${{ inputs.version }}"
+          # Push branch + tag
+          git push -u origin "$BRANCH"
+          git push origin "${VER}"
 
-      - run: dotnet build -c Release
+          # Create PR if one doesn't already exist
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            echo "PR already exists for $BRANCH"
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "Release ${VER}"
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
