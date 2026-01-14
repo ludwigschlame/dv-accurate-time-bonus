@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   build:
@@ -41,41 +40,32 @@ jobs:
               }] + .Releases
           ' repository.json > "$tmp" && mv "$tmp" repository.json
 
-      - run: dotnet build -c Release
-
-      - name: Create PR to main
-        id: cpr
-        uses: peter-evans/create-pull-request@v8
-        with:
-          branch: release/${{ inputs.version }}
-          commit-message: create release ${{ inputs.version }}
-          title: "Create release ${{ inputs.version }}"
-          body: |
-            Automated release PR for version ${{ inputs.version }}.
-          delete-branch: false
-
-      - name: Tag release commit
+      - name: Commit changes and tag
         shell: bash
         run: |
           set -euo pipefail
 
-          VER="${{ inputs.version }}"
-          SHA="${{ steps.cpr.outputs.pull-request-head-sha }}"
-
-          if [[ -z "$SHA" ]]; then
-            echo "Missing PR head SHA from create-pull-request output."
+          if git diff --quiet; then
+            echo "No changes detected. Aborting."
             exit 1
           fi
 
-          git tag -a "$VER" "$SHA" -m "release $VER"
-          git push origin "$VER"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add info.json repository.json
+          git commit -m "chore(release): ${{ inputs.version }}"
+
+          git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
+
+          git push origin HEAD
+          git push origin "${{ inputs.version }}"
+
+      - run: dotnet build -c Release
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.version }}
-          target_commitish: release/${{ inputs.version }}
-          draft: true
           files: dist/AccurateTimeBonus_${{ inputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
