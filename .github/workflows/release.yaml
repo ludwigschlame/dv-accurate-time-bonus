@@ -43,39 +43,51 @@ jobs:
 
       - run: dotnet build -c Release
 
-      - name: Create PR to main
-        id: cpr
-        uses: peter-evans/create-pull-request@v8
-        with:
-          branch: release/${{ inputs.version }}
-          commit-message: create release ${{ inputs.version }}
-          title: "Create release ${{ inputs.version }}"
-          body: |
-            Automated release PR for version ${{ inputs.version }}.
-          delete-branch: false
-
-      - name: Tag release commit
+      - name: Commit changes on release branch, open PR to main, tag
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
           VER="${{ inputs.version }}"
-          SHA="${{ steps.cpr.outputs.pull-request-head-sha }}"
+          BRANCH="release/${VER}"
 
-          if [[ -z "$SHA" ]]; then
-            echo "Missing PR head SHA from create-pull-request output."
+          if git diff --quiet; then
+            echo "No changes detected. Aborting."
             exit 1
           fi
 
-          git tag -a "$VER" "$SHA" -m "release $VER"
-          git push origin "$VER"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create / reset release branch from current HEAD
+          git switch -c "$BRANCH" || git switch "$BRANCH"
+          git pull --ff-only origin "$BRANCH" || true
+
+          git add info.json repository.json
+          git commit -m "release ${VER}"
+
+          # Tag the release commit (tag points to the same commit that PR will merge)
+          git tag -a "${VER}" -m "release ${VER}"
+
+          # Push branch + tag
+          git push -u origin "$BRANCH"
+          git push origin "${VER}"
+
+          # Create PR if one doesn't already exist
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            echo "PR already exists for $BRANCH"
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "Release ${VER}"
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.version }}
-          target_commitish: release/${{ inputs.version }}
-          draft: true
           files: dist/AccurateTimeBonus_${{ inputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
