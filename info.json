@@ -1,6 +1,6 @@
 {
   "Id": "AccurateTimeBonus",
-  "Version": "1.0.0",
+  "Version": "1.1.0",
   "DisplayName": "Accurate Time Bonus",
   "Author": "DVG Connoisseurs",
   "EntryMethod": "AccurateTimeBonus.Main.Load",
