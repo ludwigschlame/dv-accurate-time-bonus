@@ -72,9 +72,9 @@ jobs:
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        tag_name: ${{ inputs.version }}
-        target_commitish: release/${{ inputs.version }}
         with:
+          tag_name: ${{ inputs.version }}
+          target_commitish: release/${{ inputs.version }}
           draft: true
           files: dist/AccurateTimeBonus_${{ inputs.version }}.zip
         env:
