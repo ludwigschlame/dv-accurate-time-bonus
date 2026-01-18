@@ -12,8 +12,6 @@ public static class PathFinding
 		Cache.Clear();
 	}
 
-	// Simple implementation of Dijkstra's Algorithm
-	// that returns the minimal distance between two nodes.
 	public static bool FindShortestDistance(int startId, int targetId, out float distance)
 	{
 		if (Cache.TryGetValue((startId, targetId), out distance))
@@ -27,7 +25,6 @@ public static class PathFinding
 			return true;
 		}
 
-		Main.Error($"Could not find path between {startId} and {targetId}");
 		return false;
 	}
 
@@ -107,14 +104,12 @@ public static class PathFinding
 		foreach (int targetId in targetIds)
 		{
 			float distance = distances[targetId];
-			if (float.IsPositiveInfinity(distance))
+			if (!float.IsPositiveInfinity(distance))
 			{
-				Main.Error($"Could not find path between {startId} and {targetId}");
-				continue;
+				Cache[(startId, targetId)] = distance;
+				Cache[(targetId, startId)] = distance;
 			}
 
-			Cache[(startId, targetId)] = distance;
-			Cache[(targetId, startId)] = distance;
 		}
 	}
 }

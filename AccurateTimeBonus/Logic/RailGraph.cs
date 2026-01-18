@@ -186,10 +186,6 @@ public static class RailGraph
 					totalDistanceGraph += distance;
 					totalDistanceEuclid += Vector3.Distance(startPosition, destinationPosition);
 				}
-				else
-				{
-					return false;
-				}
 			}
 		}
 
