@@ -140,9 +140,9 @@ public static class RailGraph
 		int[] stationNode = new int[stationCount];
 		for (int i = 0; i < stationCount; i++)
 		{
-			if (FindNearestNodeToStation(stationList[i], out int nodeId))
+			if (!FindNearestNodeToStation(stationList[i], out stationNode[i]))
 			{
-				stationNode[i] = nodeId;
+				return false;
 			}
 		}
 
@@ -185,10 +185,6 @@ public static class RailGraph
 				{
 					totalDistanceGraph += distance;
 					totalDistanceEuclid += Vector3.Distance(startPosition, destinationPosition);
-				}
-				else
-				{
-					return false;
 				}
 			}
 		}

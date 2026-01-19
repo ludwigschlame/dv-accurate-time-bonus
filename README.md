@@ -19,7 +19,7 @@ This mod should be compatible with most mods.
 If you are having problems, please disable the other mods to check if they are conflicting.
 
 Mods known to work:
-- [Mapify Continued](https://github.com/t0stiman/dv-mapify) (except for maps where not all stations are connected)
+- [Mapify Continued](https://github.com/t0stiman/dv-mapify)
 
 ## Roadmap
 - Include track curvatures, which correlate to the speed you can drive on a section, alongside the raw track length when determining time bonuses
