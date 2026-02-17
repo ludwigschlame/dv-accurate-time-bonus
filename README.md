@@ -24,7 +24,7 @@ The table below shows the changes in time bonuses for selected connections in mi
 | OWN &harr; GF    | 10      | 22       | 14               |
 | HB  &harr; CME   | 60      | 105      | 65               |
 | SM  &harr; GF    | 46      | 50       | 31               |
-| OWC &harr; FM    | 9       | 8        | 5                |
+| OWC &harr; FM    | 9       | 9        | 6                |
 | CME &harr; GF    | 21      | 97       | 60               |
 
 OWN &harr; GF and HB &harr; CME are two connections that require a significant deviation from the straight-line distance, making their accurate time bonuses much higher.
