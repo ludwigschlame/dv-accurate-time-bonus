@@ -20,8 +20,8 @@ public static class RailGraph
 {
 	private static readonly List<Node> nodes = [];
 
-	// Cache nearest node to a YardId
-	private static readonly Dictionary<String, int> NearestNodeToYardIdCache = new();
+	// Cache nearest node and its distance to a YardId.
+	private static readonly Dictionary<String, (int nodeId, float distance)> NearestNodeToYardIdCache = new();
 	public static IReadOnlyList<Node> Nodes => nodes;
 	public static RailGraphState State;
 
@@ -140,7 +140,7 @@ public static class RailGraph
 		int[] stationNode = new int[stationCount];
 		for (int i = 0; i < stationCount; i++)
 		{
-			if (!FindNearestNodeToStation(stationList[i], out stationNode[i]))
+			if (!FindNearestNodeToStation(stationList[i], out stationNode[i], out _))
 			{
 				return false;
 			}
@@ -175,8 +175,8 @@ public static class RailGraph
 				StationController destinationStation = stationList[j];
 				Vector3 startPosition = startStation.transform.position - OriginShift.currentMove;
 				Vector3 destinationPosition = destinationStation.transform.position - OriginShift.currentMove;
-				if (!FindNearestNodeToStation(startStation, out int nodeA) ||
-				    !FindNearestNodeToStation(destinationStation, out int nodeB))
+				if (!FindNearestNodeToStation(startStation, out int nodeA, out _) ||
+				    !FindNearestNodeToStation(destinationStation, out int nodeB, out _))
 				{
 					return false;
 				}
@@ -308,34 +308,35 @@ public static class RailGraph
 		node.OutgoingEdges.Add(edge);
 	}
 
-	public static bool FindNearestNodeToStation(StationController stationController, out int nodeId)
+	public static bool FindNearestNodeToStation(StationController stationController, out int nodeId, out float distance)
 	{
-		if (NearestNodeToYardIdCache.TryGetValue(stationController.stationInfo.YardID, out nodeId))
+		if (NearestNodeToYardIdCache.TryGetValue(stationController.stationInfo.YardID, out (int, float) value))
 		{
+			(nodeId, distance) = value;
 			return true;
 		}
 
 		Vector3 position = stationController.transform.position - OriginShift.currentMove;
-		if (FindNearestNode(position, out nodeId))
+		if (FindNearestNode(position, out nodeId, out distance))
 		{
-			NearestNodeToYardIdCache[stationController.stationInfo.YardID] = nodeId;
+			NearestNodeToYardIdCache[stationController.stationInfo.YardID] = (nodeId, distance);
 			return true;
 		}
 
 		return false;
 	}
 
-	private static bool FindNearestNode(Vector3 position, out int nodeId)
+	private static bool FindNearestNode(Vector3 position, out int nodeId, out float distance)
 	{
 		nodeId = -1;
-		float bestDist = float.MaxValue;
+		distance = float.MaxValue;
 
 		for (int i = 0; i < nodes.Count; i++)
 		{
 			float dist = Vector3.Distance(nodes[i].Position, position);
-			if (dist < bestDist)
+			if (dist < distance)
 			{
-				bestDist = dist;
+				distance = dist;
 				nodeId = nodes[i].Id;
 			}
 		}

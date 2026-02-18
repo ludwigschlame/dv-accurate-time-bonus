@@ -27,12 +27,12 @@ internal class JobPaymentCalculatorPatch
 		string startYardID = startStation.stationInfo.YardID;
 		string destinationYardID = destinationStation.stationInfo.YardID;
 
-		if (!RailGraph.FindNearestNodeToStation(startStation, out int startNode))
+		if (!RailGraph.FindNearestNodeToStation(startStation, out int startNode, out float startNodeDistance))
 		{
 			Main.Warning($"Could not map station to graph node: {startYardID}");
 			return true;
 		}
-		if (!RailGraph.FindNearestNodeToStation(destinationStation, out int destinationNode))
+		if (!RailGraph.FindNearestNodeToStation(destinationStation, out int destinationNode, out float destinationNodeDistance))
 		{
 			Main.Warning($"Could not map station to graph node: {destinationYardID}.");
 			return true;
@@ -43,6 +43,9 @@ internal class JobPaymentCalculatorPatch
 			Main.Warning($"Could not find path between {startYardID} and {destinationYardID}");
 			return true;
 		}
+
+		// Add distances from stations to their nearest node.
+		accurateDistance += startNodeDistance + destinationNodeDistance;
 
 		float originalDistance =
 			Vector3.Distance(startStation.transform.position, destinationStation.transform.position);
