@@ -41,6 +41,7 @@ If you are having problems, please disable the other mods to check if they are c
 
 Mods known to work:
 - [Mapify Continued](https://github.com/t0stiman/dv-mapify)
+- [Multiplayer](https://github.com/AMacro/dv-multiplayer)
 
 ## Roadmap
 - Include track curvatures, which correlate to the speed you can drive on a section, alongside the raw track length when determining time bonuses
