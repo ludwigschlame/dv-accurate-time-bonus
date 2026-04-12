@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.0
+
 - Add multiplayer compatibility details to info.json (host only)
 - Include distances from stations to their nearest node in distance calculations
 - Add support for maps with disjoint rail networks
