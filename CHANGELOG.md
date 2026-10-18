@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.0
+
 - Improve route calculation performance
 - Show the shortest routes of active jobs on the world map
 - Show a preview of the currently held job booklet as a dashed line on the world map
