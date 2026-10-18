@@ -2,7 +2,7 @@
   "Id": "AccurateTimeBonus",
   "DisplayName": "Accurate Time Bonus",
   "Author": "DVG Connoisseurs",
-  "Version": "1.2.0",
+  "Version": "1.3.0",
   "ManagerVersion": "0.27.2",
   "AssemblyName": "AccurateTimeBonus.dll",
   "EntryMethod": "AccurateTimeBonus.Main.Load",
