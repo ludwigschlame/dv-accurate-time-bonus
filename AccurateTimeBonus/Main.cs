@@ -1,4 +1,5 @@
-using AccurateTimeBonus.Logic;
+using AccurateTimeBonus.Routing;
+using AccurateTimeBonus.MapRouteOverlays;
 using HarmonyLib;
 using System;
 using System.Diagnostics;
@@ -33,6 +34,7 @@ public static class Main
 	{
 		ModEntry = modEntry;
 		modEntry.OnUnload = Unload;
+		modEntry.OnUpdate = (_, _) => RailGraph.Update();
 
 		Settings = UnityModManager.ModSettings.Load<Settings.ATBModSettings>(ModEntry);
 
@@ -45,10 +47,16 @@ public static class Main
 		{
 			_harmony = new Harmony(modEntry.Info.Id);
 			_harmony.PatchAll(Assembly.GetExecutingAssembly());
+			OfficeMapRouteOverlay.AttachExisting();
+			HandheldMapRouteOverlay.AttachExisting();
 		}
 		catch (Exception ex)
 		{
 			Error($"Failed to load {modEntry.Info.DisplayName}:", ex);
+			OfficeMapRouteOverlay.DetachAll();
+			HandheldMapRouteOverlay.DetachAll();
+			Clear();
+			modEntry.OnUpdate = null;
 			_harmony?.UnpatchAll(modEntry.Info.Id);
 			return false;
 		}
@@ -60,11 +68,15 @@ public static class Main
 	{
 		RailGraph.Clear();
 		PathFinding.Clear();
+		JobRouteService.Clear();
 	}
 
 	static bool Unload(UnityModManager.ModEntry modEntry)
 	{
+		OfficeMapRouteOverlay.DetachAll();
+		HandheldMapRouteOverlay.DetachAll();
 		Clear();
+		modEntry.OnUpdate = null;
 		_harmony?.UnpatchAll(modEntry.Info.Id);
 		return true;
 	}

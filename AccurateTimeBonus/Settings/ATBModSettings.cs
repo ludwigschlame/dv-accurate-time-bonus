@@ -14,6 +14,9 @@ public class ATBModSettings : UnityModManager.ModSettings, IDrawable
 	[Draw("Adjust new distance calculation to preserve time bonus and payout balancing")]
 	public bool UseDistanceBalancing = true;
 
+	[Draw("Display route overlays on world map")]
+	public bool ShowRouteOverlays = true;
+
 	[XmlIgnore]
 	public Action<ATBModSettings>? OnSettingsSaved;
 
