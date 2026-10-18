@@ -1,4 +1,5 @@
 using AccurateTimeBonus.Routing;
+using AccurateTimeBonus.MapRouteOverlays;
 using HarmonyLib;
 using System;
 using System.Diagnostics;
@@ -63,6 +64,7 @@ public static class Main
 	{
 		RailGraph.Clear();
 		PathFinding.Clear();
+		JobRouteService.Clear();
 	}
 
 	static bool Unload(UnityModManager.ModEntry modEntry)

@@ -258,26 +258,25 @@ public static class RailGraph
 		return true;
 	}
 
+	internal static bool TryGetTrack(int segmentId, out RailTrack track)
+	{
+		track = null!;
+		if (graph == null || segmentId < 0 || segmentId >= graph.Tracks.Length) return false;
+		track = graph.Tracks[segmentId];
+		return track != null;
+	}
+
 	private static float ApproximateBezierLength(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3)
 	{
 		float length = 0f;
 		Vector3 previous = p0;
-		for (int i = 1; i <= 16; i++)
+		for (int i = 1; i <= RailRouteGeometry.SamplesPerSpan; i++)
 		{
-			Vector3 current = EvaluateCubic(p0, p1, p2, p3, i / 16f);
+			Vector3 current = RailRouteGeometry.EvaluateCubic(p0, p1, p2, p3, i / (float)RailRouteGeometry.SamplesPerSpan);
 			length += Vector3.Distance(previous, current);
 			previous = current;
 		}
 		return length;
 	}
 
-	internal static Vector3 EvaluateCubic(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
-	{
-		float u = 1f - t;
-		float uu = u * u;
-		float uuu = uu * u;
-		float tt = t * t;
-		float ttt = tt * t;
-		return uuu * p0 + 3f * uu * t * p1 + 3f * u * tt * p2 + ttt * p3;
-	}
 }

@@ -1,4 +1,7 @@
 using AccurateTimeBonus.Routing;
+using AccurateTimeBonus.MapRouteOverlays;
+using DV.ThingTypes;
+using UnityEngine;
 
 namespace AccurateTimeBonus.Tests;
 
@@ -65,6 +68,19 @@ internal static class Program
 				}
 			});
 			Run("Random networks match an independent distance oracle", RandomNetworks);
+			Run("Long segmented lines reduce to protected stations", () =>
+			{
+				const int segmentCount = 10000;
+				var network = Network(segmentCount + 1,
+					Enumerable.Range(0, segmentCount).Select(i => (i, i + 1, 1f)).ToArray());
+				var anchors = Enumerable.Range(0, 21).Select(i => i * 500).ToArray();
+				var result = RailGraphCompression.Compress(network, anchors);
+				Check(result.Network.NodeCount == 21 && result.Network.Corridors.Count == 20);
+				Check(result.Network.Corridors.Sum(corridor => corridor.Segments.Count) == segmentCount);
+				var cache = new PathFindingCache(result.Network);
+				Check(cache.TryGetShortestRoute(0, 20, out var route));
+				Check(route.Distance == segmentCount && route.Traversals.Count == 20);
+			});
 			Run("Multi-target searches do not mutate caller input", () =>
 			{
 				var cache = new PathFindingCache(Network(3, (0, 1, 1), (1, 2, 2)));
@@ -102,6 +118,89 @@ internal static class Program
 				Check(!cache.TryGetShortestRoute(0, 2, out _));
 				Check(!cache.TryGetShortestRoute(2, 0, out _));
 				Check(cache.CachedPairCount == 1);
+			});
+			Run("Haul documents can be previewed in any state but active routes require in-progress jobs", () =>
+			{
+				foreach (JobType type in Enum.GetValues<JobType>())
+				{
+					bool haul = type == JobType.Transport || type == JobType.EmptyHaul;
+					Check(JobRouteEligibility.CanPreview(type) == haul);
+					foreach (JobState state in Enum.GetValues<JobState>())
+					{
+						Check(JobRouteEligibility.CanShowActiveRoute(type, state) == (haul && state == JobState.InProgress));
+					}
+				}
+			});
+			Run("Station route keys ignore direction and deduplicate identical pairs", () =>
+			{
+				Check(StationRouteKey.TryCreate("A", "B", out StationRouteKey forward));
+				Check(StationRouteKey.TryCreate("B", "A", out StationRouteKey reverse));
+				Check(forward.Equals(reverse));
+				Check(forward.GetHashCode() == reverse.GetHashCode());
+				Check(StationRouteKey.TryCreate("A", "C", out StationRouteKey other));
+				Check(!forward.Equals(other));
+				Check(StationRouteKey.TryCreate("A", "A", out StationRouteKey same));
+				Check(same.FromStationId == "A" && same.ToStationId == "A");
+				Check(!StationRouteKey.TryCreate("", "B", out _));
+			});
+			Run("Active and preview layers remain distinct for the same station route", () =>
+			{
+				var route = new StationRoute(100, new[] { Vector3.zero, Vector3.one });
+				var routeSet = new JobRouteDisplaySet(new[] { route }, route);
+				Check(routeSet.ActiveRoutes.Count == 1);
+				Check(ReferenceEquals(routeSet.ActiveRoutes[0], routeSet.PreviewRoute));
+				Check(routeSet.HasRoutes);
+				Check(!JobRouteDisplaySet.Empty.HasRoutes);
+			});
+			Run("Cubic sampling retains the curve and its endpoints", () =>
+			{
+				CubicSpan curve = new(new Vector3(0, 0, 0), new Vector3(0, 0, 16),
+					new Vector3(16, 0, 16), new Vector3(16, 0, 0));
+				var route = new RailRoute(0, 1, 32, Network(2, (0, 1, 32)).EdgesFrom(0));
+				Check(RailRouteGeometry.TryBuild(route, curve.P0, curve.P0, curve.P3, curve.P3, _ => new[] { curve }, out var points));
+				Check(points.Length == 17);
+				Check(Near(points[0], curve.P0) && Near(points[16], curve.P3));
+				Check(Near(points[8], new Vector3(8, 0, 12)));
+			});
+			Run("Multi-span geometry reverses continuously and retains station connectors", () =>
+			{
+				var spans = new Dictionary<int, IReadOnlyList<CubicSpan>>
+				{
+					[0] = new[] { Line(0, 5), Line(5, 10) },
+					[1] = new[] { Line(20, 10) }
+				};
+				var corridor = new RailCorridor(0, 1, 20, new[] { new TrackTraversal(0), new TrackTraversal(1, true) });
+				var route = new RailRoute(0, 1, 20, new[] { new CorridorTraversal(corridor) });
+				Vector3 from = new(-2, 0, 0);
+				Vector3 to = new(22, 0, 0);
+				Vector3 anchorA = new(0, 0, 0);
+				Vector3 anchorB = new(20, 0, 0);
+				Check(RailRouteGeometry.TryBuild(route, from, anchorA, anchorB, to, id => spans[id], out var forward));
+				Check(RailRouteGeometry.TryBuild(route.Reverse(), to, anchorB, anchorA, from, id => spans[id], out var backward));
+				Check(Near(forward[0], from) && Near(forward[^1], to));
+				Check(forward.Length == backward.Length);
+				for (int i = 0; i < forward.Length; i++)
+				{
+					Check(Near(forward[i], backward[backward.Length - i - 1]));
+					if (i > 0) Check(forward[i].x > forward[i - 1].x, "Duplicate or out-of-order points");
+				}
+				float sampledLength = 0;
+				for (int i = 1; i < forward.Length; i++) sampledLength += Vector3.Distance(forward[i - 1], forward[i]);
+				Check(Equal(sampledLength, route.Distance + 2 + 2));
+			});
+			Run("Missing curves never produce a partial preview", () =>
+			{
+				var route = new RailRoute(0, 1, 1, Network(2, (0, 1, 1)).EdgesFrom(0));
+				Check(!RailRouteGeometry.TryBuild(route, default, default, default, default, _ => null, out var points));
+				Check(points.Length == 0);
+				Check(!RailRouteGeometry.TryBuild(route, default, default, default, default, _ => Array.Empty<CubicSpan>(), out _));
+			});
+			Run("Identical anchors retain both station connectors", () =>
+			{
+				var route = new RailRoute(0, 0, 0, Array.Empty<CorridorTraversal>());
+				Check(RailRouteGeometry.TryBuild(route, new Vector3(-1, 0, 0), default, default,
+					new Vector3(1, 0, 0), _ => throw new Exception("No tracks should be read"), out var points));
+				Check(points.Length == 3 && Near(points[1], default));
 			});
 			Console.WriteLine($"Passed {passed} tests.");
 			return 0;
@@ -193,6 +292,16 @@ internal static class Program
 		return expected == actual || Math.Abs(expected - actual) <= Math.Max(0.001, Math.Abs(expected) * 0.00001);
 	}
 
+	private static bool Near(Vector3 a, Vector3 b) => (a - b).sqrMagnitude < 0.000001f;
+	private static bool Near(float a, float b) => Math.Abs(a - b) < 0.000001f;
+
+	private static CubicSpan Line(float from, float to)
+	{
+		float delta = to - from;
+		return new CubicSpan(new Vector3(from, 0, 0), new Vector3(from + delta / 3, 0, 0),
+			new Vector3(from + 2 * delta / 3, 0, 0), new Vector3(to, 0, 0));
+	}
+
 	private static double[,] Distances(RailNetwork network)
 	{
 		double[,] distances = new double[network.NodeCount, network.NodeCount];
@@ -220,12 +329,13 @@ internal static class Program
 	{
 		for (int seed = 0; seed < 100; seed++)
 		{
-			Random random = new(seed);
+			System.Random random = new(seed);
 			int count = random.Next(1, 25);
 			List<(int from, int to, float length)> edges = new();
 			for (int i = 0; i < count * 2; i++)
 			{
-				edges.Add((random.Next(count), random.Next(count), random.Next(0, 100)));
+				edges.Add((random.Next(count), random.Next(count),
+					seed % 2 == 0 ? random.Next(0, 100) : (float)(random.NextDouble() * 10000)));
 			}
 			CheckCompression(Network(count, edges.ToArray()), random.Next(count));
 		}

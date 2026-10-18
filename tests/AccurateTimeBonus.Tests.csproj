@@ -12,5 +12,13 @@
 		<Compile Include="../AccurateTimeBonus/Routing/RailGraphCompression.cs" Link="Routing/RailGraphCompression.cs" />
 		<Compile Include="../AccurateTimeBonus/Routing/PathFindingCache.cs" Link="Routing/PathFindingCache.cs" />
 		<Compile Include="../AccurateTimeBonus/Routing/RailRoute.cs" Link="Routing/RailRoute.cs" />
+		<Compile Include="../AccurateTimeBonus/Routing/RailRouteGeometry.cs" Link="Routing/RailRouteGeometry.cs" />
+		<Compile Include="../AccurateTimeBonus/MapRouteOverlays/JobRouteEligibility.cs" Link="MapRouteOverlays/JobRouteEligibility.cs" />
+		<Compile Include="../AccurateTimeBonus/MapRouteOverlays/StationRouteKey.cs" Link="MapRouteOverlays/StationRouteKey.cs" />
+		<Compile Include="../AccurateTimeBonus/MapRouteOverlays/JobRouteDisplaySet.cs" Link="MapRouteOverlays/JobRouteDisplaySet.cs" />
+	</ItemGroup>
+	<ItemGroup>
+		<Reference Include="UnityEngine.CoreModule" />
+		<Reference Include="DV.ThingTypes" />
 	</ItemGroup>
 </Project>

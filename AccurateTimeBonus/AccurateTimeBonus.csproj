@@ -24,6 +24,10 @@
 		<Reference Include="DV.OriginShiftInfo" />
 		<Reference Include="DV.RailTrack" />
 		<Reference Include="DV.Utils" />
+		<Reference Include="DV.Inventory" />
+		<Reference Include="DV.UI" />
+		<Reference Include="DV.UIFramework" />
+		<Reference Include="DV.ThingTypes" />
 	</ItemGroup>
 
 	<!-- Unity -->
