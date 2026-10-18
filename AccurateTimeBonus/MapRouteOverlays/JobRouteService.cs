@@ -37,6 +37,14 @@ public static class JobRouteService
 			return JobRouteDisplaySet.Empty;
 		}
 
+		if (!Main.Settings.ShowRouteOverlays)
+		{
+			lastEvaluatedFrame = Time.frameCount;
+			displayGeneration = -1;
+			displaySet = JobRouteDisplaySet.Empty;
+			return displaySet;
+		}
+
 		if (lastEvaluatedFrame == Time.frameCount) return displaySet;
 		lastEvaluatedFrame = Time.frameCount;
 		if (routeCacheGeneration != RailGraph.Generation)
