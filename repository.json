@@ -2,6 +2,11 @@
   "Releases": [
     {
       "Id": "AccurateTimeBonus",
+      "Version": "1.3.0",
+      "DownloadUrl": "https://github.com/ludwigschlame/dv-accurate-time-bonus/releases/download/1.3.0/AccurateTimeBonus_1.3.0.zip"
+    },
+    {
+      "Id": "AccurateTimeBonus",
       "Version": "1.2.0",
       "DownloadUrl": "https://github.com/ludwigschlame/dv-accurate-time-bonus/releases/download/1.2.0/AccurateTimeBonus_1.2.0.zip"
     },
