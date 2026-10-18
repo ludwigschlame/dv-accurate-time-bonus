@@ -43,7 +43,7 @@
 		<PackageReference Include="Nullable" Version="1.3.1" PrivateAssets="all" />
 	</ItemGroup>
 
-	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(SkipModDeployment)' != 'true'">
 		<!-- Copy to build folder -->
 		<Copy SourceFiles="$(TargetPath)" DestinationFolder="$(SolutionDir)build/" />
 
