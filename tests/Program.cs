@@ -36,7 +36,7 @@ internal static class Program
 			{
 				var result = CheckCompression(Network(4, (0, 1, 1), (1, 3, 1), (0, 2, 5), (2, 3, 5)), 0, 3);
 				Check(result.Network.Corridors.Count == 2 && result.Network.NodeCount == 2);
-				Check(result.Network.Corridors.Select(edge => edge.Length).Order().SequenceEqual(new[] { 2f, 10f }));
+				Check(result.Network.Corridors.Select(edge => edge.Length).OrderBy(length => length).SequenceEqual(new[] { 2f, 10f }));
 			});
 			Run("Closed components remain intact", () =>
 			{
@@ -121,11 +121,11 @@ internal static class Program
 			});
 			Run("Haul documents can be previewed in any state but active routes require in-progress jobs", () =>
 			{
-				foreach (JobType type in Enum.GetValues<JobType>())
+				foreach (JobType type in Enum.GetValues(typeof(JobType)))
 				{
 					bool haul = type == JobType.Transport || type == JobType.EmptyHaul;
 					Check(JobRouteEligibility.CanPreview(type) == haul);
-					foreach (JobState state in Enum.GetValues<JobState>())
+					foreach (JobState state in Enum.GetValues(typeof(JobState)))
 					{
 						Check(JobRouteEligibility.CanShowActiveRoute(type, state) == (haul && state == JobState.InProgress));
 					}
@@ -212,7 +212,7 @@ internal static class Program
 				Vector3 anchorB = new(20, 0, 0);
 				Check(RailRouteGeometry.TryBuild(route, from, anchorA, anchorB, to, id => spans[id], out var forward));
 				Check(RailRouteGeometry.TryBuild(route.Reverse(), to, anchorB, anchorA, from, id => spans[id], out var backward));
-				Check(Near(forward[0], from) && Near(forward[^1], to));
+				Check(Near(forward[0], from) && Near(forward[forward.Length - 1], to));
 				Check(forward.Length == backward.Length);
 				for (int i = 0; i < forward.Length; i++)
 				{
@@ -351,7 +351,7 @@ internal static class Program
 			Check(current == originalNodes[corridor.ToId]);
 			Check(Equal(length, corridor.Length));
 		}
-		Check(segments.Order().SequenceEqual(Enumerable.Range(0, network.Corridors.Count)), "Tracks lost or duplicated");
+		Check(segments.OrderBy(segment => segment).SequenceEqual(Enumerable.Range(0, network.Corridors.Count)), "Tracks lost or duplicated");
 		return compressed;
 	}
 
