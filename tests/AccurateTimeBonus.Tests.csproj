@@ -13,6 +13,9 @@
 		<Compile Include="../AccurateTimeBonus/Routing/PathFindingCache.cs" Link="Routing/PathFindingCache.cs" />
 		<Compile Include="../AccurateTimeBonus/Routing/RailRoute.cs" Link="Routing/RailRoute.cs" />
 		<Compile Include="../AccurateTimeBonus/Routing/RailRouteGeometry.cs" Link="Routing/RailRouteGeometry.cs" />
+		<Compile Include="../AccurateTimeBonus/MapRouteOverlays/OfficeMapProjection.cs" Link="MapRouteOverlays/OfficeMapProjection.cs" />
+		<Compile Include="../AccurateTimeBonus/MapRouteOverlays/RouteRibbonMeshBuilder.cs" Link="MapRouteOverlays/RouteRibbonMeshBuilder.cs" />
+		<Compile Include="../AccurateTimeBonus/MapRouteOverlays/RouteOverlayStyle.cs" Link="MapRouteOverlays/RouteOverlayStyle.cs" />
 		<Compile Include="../AccurateTimeBonus/MapRouteOverlays/JobRouteEligibility.cs" Link="MapRouteOverlays/JobRouteEligibility.cs" />
 		<Compile Include="../AccurateTimeBonus/MapRouteOverlays/StationRouteKey.cs" Link="MapRouteOverlays/StationRouteKey.cs" />
 		<Compile Include="../AccurateTimeBonus/MapRouteOverlays/JobRouteDisplaySet.cs" Link="MapRouteOverlays/JobRouteDisplaySet.cs" />

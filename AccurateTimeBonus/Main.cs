@@ -47,10 +47,12 @@ public static class Main
 		{
 			_harmony = new Harmony(modEntry.Info.Id);
 			_harmony.PatchAll(Assembly.GetExecutingAssembly());
+			OfficeMapRouteOverlay.AttachExisting();
 		}
 		catch (Exception ex)
 		{
 			Error($"Failed to load {modEntry.Info.DisplayName}:", ex);
+			OfficeMapRouteOverlay.DetachAll();
 			Clear();
 			modEntry.OnUpdate = null;
 			_harmony?.UnpatchAll(modEntry.Info.Id);
@@ -69,6 +71,7 @@ public static class Main
 
 	static bool Unload(UnityModManager.ModEntry modEntry)
 	{
+		OfficeMapRouteOverlay.DetachAll();
 		Clear();
 		modEntry.OnUpdate = null;
 		_harmony?.UnpatchAll(modEntry.Info.Id);

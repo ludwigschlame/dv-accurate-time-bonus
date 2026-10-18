@@ -152,6 +152,41 @@ internal static class Program
 				Check(routeSet.HasRoutes);
 				Check(!JobRouteDisplaySet.Empty.HasRoutes);
 			});
+			Run("Preview route style controls width and dashing independently", () =>
+			{
+				Check(Near(RouteOverlayStyle.Active.WidthScale, 1f));
+				Check(!RouteOverlayStyle.Active.IsDashed);
+				Check(RouteOverlayStyle.Preview.WidthScale > 0f &&
+					RouteOverlayStyle.Preview.WidthScale < RouteOverlayStyle.Active.WidthScale);
+				Check(RouteOverlayStyle.Preview.IsDashed);
+				Check(Near(RouteOverlayStyle.Preview.DashLengthMapSizeDivisor, 64f));
+			});
+			Run("Dashed preview mesh contains separated dash ribbons", () =>
+			{
+				List<Vector3> vertices = new();
+				List<int> triangles = new();
+				RouteRibbonMeshBuilder.BuildDashed(new[] { new[] { Vector3.zero, new Vector3(10, 0, 0) } },
+					0.2f, 2f, 2f, vertices, triangles);
+				Check(vertices.Count == 12 && triangles.Count == 18);
+				Check(Near(vertices[0].x, 0) && Near(vertices[2].x, 2) && Near(vertices[0].y, 0.1f));
+				Check(Near(vertices[4].x, 4) && Near(vertices[6].x, 6));
+				Check(Near(vertices[8].x, 8) && Near(vertices[10].x, 10));
+			});
+			Run("Solid and dashed ribbons use the same stroke width", () =>
+			{
+				List<Vector3> solidVertices = new();
+				List<int> solidTriangles = new();
+				List<Vector3> dashedVertices = new();
+				List<int> dashedTriangles = new();
+				Vector3[] path = { Vector3.zero, new Vector3(10, 0, 0) };
+				RouteRibbonMeshBuilder.BuildSolid(new[] { path }, 0.2f, solidVertices, solidTriangles);
+				RouteRibbonMeshBuilder.BuildDashed(new[] { path }, 0.2f, 2f, 2f,
+					dashedVertices, dashedTriangles);
+				Check(Near(solidVertices[0].y, dashedVertices[0].y));
+				Check(Near(solidVertices[1].y, dashedVertices[1].y));
+				Check(Near(dashedVertices[4].x, 4));
+				Check(dashedVertices.Count == 12 && dashedTriangles.Count == 18);
+			});
 			Run("Cubic sampling retains the curve and its endpoints", () =>
 			{
 				CubicSpan curve = new(new Vector3(0, 0, 0), new Vector3(0, 0, 16),
@@ -201,6 +236,39 @@ internal static class Program
 				Check(RailRouteGeometry.TryBuild(route, new Vector3(-1, 0, 0), default, default,
 					new Vector3(1, 0, 0), _ => throw new Exception("No tracks should be read"), out var points));
 				Check(points.Length == 3 && Near(points[1], default));
+			});
+			Run("World XZ coordinates normalize with map-world offset", () =>
+			{
+				Vector2 uv = OfficeMapProjection.GetWorldTextureCoordinate(
+					new Vector3(150, 0, 250), new Vector3(100, 0, 200), new Vector3(100, 0, 50));
+				Check(Near(uv.x, 0.5f) && Near(uv.y, 1f));
+				Vector2 outside = OfficeMapProjection.GetWorldTextureCoordinate(
+					new Vector3(0, 0, 500), new Vector3(100, 0, 200), new Vector3(100, 0, 50));
+				Check(Near(outside.x, 0f) && Near(outside.y, 1f));
+			});
+			Run("Office routes project onto the back face from either camera side", () =>
+			{
+				Bounds bounds = new(Vector3.zero, new Vector3(2, 0.2f, 2));
+				Check(OfficeMapProjection.TryProjectToBackFace(new Vector3(25, 0, 75),
+					new Vector3(100, 0, 100), Vector3.zero, bounds, positiveNormalSide: true,
+					out Vector3 positiveBackPoint, out Vector3 positiveBackNormal));
+				Check(Near(positiveBackPoint, new Vector3(-0.5f, -0.1f, 0.5f)));
+				Check(Near(positiveBackNormal, Vector3.down));
+				Check(OfficeMapProjection.TryProjectToBackFace(new Vector3(25, 0, 75),
+					new Vector3(100, 0, 100), Vector3.zero, bounds, positiveNormalSide: false,
+					out Vector3 negativeBackPoint, out Vector3 negativeBackNormal));
+				Check(Near(negativeBackPoint, new Vector3(-0.5f, 0.1f, 0.5f)));
+				Check(Near(negativeBackNormal, Vector3.up));
+			});
+			Run("Office mesh bounds cover world edges and reject degenerate surfaces", () =>
+			{
+				Bounds bounds = new(Vector3.zero, new Vector3(2, 0.2f, 2));
+				Check(OfficeMapProjection.TryProjectToBackFace(new Vector3(0.5f, 0, 0.5f), Vector3.one, Vector3.zero,
+					bounds, positiveNormalSide: true, out Vector3 center, out _));
+				Check(Near(center, new Vector3(0, -0.1f, 0)));
+				Bounds degenerate = new(Vector3.zero, new Vector3(0, 1, 0));
+				Check(!OfficeMapProjection.TryProjectToBackFace(Vector3.zero, Vector3.one, Vector3.zero,
+					degenerate, positiveNormalSide: true, out _, out _));
 			});
 			Console.WriteLine($"Passed {passed} tests.");
 			return 0;

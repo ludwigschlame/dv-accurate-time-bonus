@@ -1,5 +1,6 @@
 using System.Collections;
 using AccurateTimeBonus.Routing;
+using AccurateTimeBonus.MapRouteOverlays;
 using HarmonyLib;
 
 namespace AccurateTimeBonus.Patches;
@@ -26,6 +27,7 @@ public static class WorldStreamingInitPatch
 			RailGraph.TryBuildRailGraph();
 		}
 
+		OfficeMapRouteOverlay.AttachExisting();
 		needsReinitialization = true;
 	}
 }
