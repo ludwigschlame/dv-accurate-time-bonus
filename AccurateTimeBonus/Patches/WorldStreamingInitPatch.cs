@@ -28,6 +28,7 @@ public static class WorldStreamingInitPatch
 		}
 
 		OfficeMapRouteOverlay.AttachExisting();
+		HandheldMapRouteOverlay.AttachExisting();
 		needsReinitialization = true;
 	}
 }
