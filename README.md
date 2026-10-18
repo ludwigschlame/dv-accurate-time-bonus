@@ -62,6 +62,15 @@ Mods known to work:
 - Include track curvatures, which correlate to the speed you can drive on a section, alongside the raw track length when determining time bonuses
 - Rework shunting job time bonus calculation
 
+## Development
+
+Prerequisites: the .NET SDK and a local Derail Valley installation.
+
+- Create a `Directory.Build.targets` file in the root of the repository based on `Directory.Build.targets.example`
+- Set the `DvInstallDir` property in `Directory.Build.targets` to the path of your game installation
+- Build the mod with `dotnet build` which also copies the output to the game's `Mods` folder
+- Optionally, run the test suite with `dotnet run --project tests/AccurateTimeBonus.Tests.csproj`
+
 ## Contributing
 
 Please report bugs or improvement suggestions by creating an issue.
