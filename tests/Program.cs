@@ -73,6 +73,36 @@ internal static class Program
 				Check(targets.SetEquals(new[] { 0, 1, 2 }));
 				Check(cache.FindShortestDistance(0, 2, out float distance) && distance == 3);
 			});
+			Run("Opposite routes share corridors and one cache entry", () =>
+			{
+				var network = Network(3, (0, 1, 2), (1, 2, 3));
+				var cache = new PathFindingCache(network);
+				Check(cache.TryGetShortestRoute(2, 0, out RailRoute backward));
+				Check(cache.TryGetShortestRoute(0, 2, out RailRoute forward));
+				Check(cache.CachedPairCount == 1);
+				Check(forward.Distance == 5 && backward.Distance == 5);
+				Check(forward.GetSegments().Select(segment => segment.SegmentId).SequenceEqual(new[] { 0, 1 }));
+				Check(backward.GetSegments().All(segment => segment.Reversed));
+				Check(backward.GetSegments().Select(segment => segment.SegmentId).SequenceEqual(new[] { 1, 0 }));
+				Check(ReferenceEquals(forward.Traversals[0].Corridor, backward.Traversals[1].Corridor));
+			});
+			Run("Predecessor edges select the correct parallel corridor", () =>
+			{
+				var network = Network(2, (0, 1, 30), (0, 1, 3));
+				var cache = new PathFindingCache(network);
+				Check(cache.TryGetShortestRoute(0, 1, out RailRoute route));
+				Check(route.Distance == 3 && ReferenceEquals(route.Traversals[0].Corridor, network.Corridors[1]));
+			});
+			Run("Invalid, identical, and unreachable route endpoints", () =>
+			{
+				var cache = new PathFindingCache(Network(3, (0, 1, 4)));
+				Check(!cache.TryGetShortestRoute(-1, 0, out _));
+				Check(!cache.TryGetShortestRoute(0, 3, out _));
+				Check(cache.TryGetShortestRoute(1, 1, out RailRoute same) && same.Distance == 0 && same.Traversals.Count == 0);
+				Check(!cache.TryGetShortestRoute(0, 2, out _));
+				Check(!cache.TryGetShortestRoute(2, 0, out _));
+				Check(cache.CachedPairCount == 1);
+			});
 			Console.WriteLine($"Passed {passed} tests.");
 			return 0;
 		}
@@ -119,6 +149,20 @@ internal static class Program
 				bool reachable = cache.FindShortestDistance(a, b, out float distance);
 				Check(reachable == !double.IsPositiveInfinity(before[i, j]));
 				if (reachable) Check(Equal(before[i, j], distance), "Dijkstra disagrees with oracle");
+				Check(cache.TryGetShortestRoute(a, b, out RailRoute route) == reachable);
+				if (reachable)
+				{
+					Check(route.FromId == a && route.ToId == b);
+					int current = a;
+					float cost = 0f;
+					foreach (CorridorTraversal step in route.Traversals)
+					{
+						Check(current == step.FromId, "Route is not continuous");
+						current = step.ToId;
+						cost += step.Corridor.Length;
+					}
+					Check(current == b && Equal(cost, distance), "Route cost disagrees with distance cache");
+				}
 			}
 		}
 		foreach (int anchor in anchors) Check(compressed.OriginalToCompressed[anchor] >= 0);

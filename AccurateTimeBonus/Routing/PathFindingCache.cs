@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,7 +7,8 @@ namespace AccurateTimeBonus.Routing;
 public sealed class PathFindingCache
 {
 	private readonly RailNetwork network;
-	private readonly Dictionary<(int, int), float> distances = new();
+	private readonly Dictionary<(int, int), RailRoute?> routes = new();
+	public int CachedPairCount => routes.Count;
 
 	public PathFindingCache(RailNetwork network)
 	{
@@ -15,7 +17,7 @@ public sealed class PathFindingCache
 
 	public bool FindShortestDistance(int startId, int targetId, out float distance)
 	{
-		if (startId < 0 || startId >= network.NodeCount || targetId < 0 || targetId >= network.NodeCount)
+		if (!ValidNode(startId) || !ValidNode(targetId))
 		{
 			distance = 0f;
 			return false;
@@ -25,21 +27,41 @@ public sealed class PathFindingCache
 			distance = 0f;
 			return true;
 		}
-		if (!distances.TryGetValue((startId, targetId), out distance))
+		var key = Pair(startId, targetId);
+		if (!routes.TryGetValue(key, out RailRoute? route))
 		{
 			FindShortestDistances(startId, new HashSet<int> { targetId });
+			routes.TryGetValue(key, out route);
 		}
-		return distances.TryGetValue((startId, targetId), out distance);
+		distance = route?.Distance ?? 0f;
+		return route != null;
+	}
+
+	public bool TryGetShortestRoute(int startId, int targetId, out RailRoute route)
+	{
+		route = null!;
+		if (!FindShortestDistance(startId, targetId, out float distance)) return false;
+		if (startId == targetId)
+		{
+			route = new RailRoute(startId, targetId, distance, Array.Empty<CorridorTraversal>());
+			return true;
+		}
+		RailRoute cached = routes[Pair(startId, targetId)]!;
+		route = cached.FromId == startId ? cached : cached.Reverse();
+		return true;
 	}
 
 	public void FindShortestDistances(int startId, HashSet<int> targetIds)
 	{
-		HashSet<int> targets = new(targetIds.Where(target => target != startId && !distances.ContainsKey((startId, target))));
+		if (!ValidNode(startId)) return;
+		HashSet<int> targets = new(targetIds.Where(target =>
+			ValidNode(target) && target != startId && !routes.ContainsKey(Pair(startId, target))));
 		if (targets.Count == 0) return;
 
 		int nodeCount = network.NodeCount;
 		float[] best = Enumerable.Repeat(float.PositiveInfinity, nodeCount).ToArray();
 		bool[] visited = new bool[nodeCount];
+		CorridorTraversal?[] previous = new CorridorTraversal?[nodeCount];
 		best[startId] = 0f;
 		int remaining = targets.Count;
 		for (int step = 0; step < nodeCount; step++)
@@ -61,14 +83,34 @@ public sealed class PathFindingCache
 			{
 				if (visited[edge.ToId]) continue;
 				float candidate = distance + edge.Corridor.Length;
-				if (candidate < best[edge.ToId]) best[edge.ToId] = candidate;
+				if (candidate < best[edge.ToId])
+				{
+					best[edge.ToId] = candidate;
+					previous[edge.ToId] = edge;
+				}
 			}
 		}
 		foreach (int target in targets)
 		{
-			if (float.IsPositiveInfinity(best[target])) continue;
-			distances[(startId, target)] = best[target];
-			distances[(target, startId)] = best[target];
+			var key = Pair(startId, target);
+			if (float.IsPositiveInfinity(best[target]))
+			{
+				routes[key] = null;
+				continue;
+			}
+			List<CorridorTraversal> steps = new();
+			for (int node = target; node != startId;)
+			{
+				CorridorTraversal edge = previous[node]!.Value;
+				steps.Add(edge);
+				node = edge.FromId;
+			}
+			steps.Reverse();
+			RailRoute route = new(startId, target, best[target], steps);
+			routes[key] = startId < target ? route : route.Reverse();
 		}
 	}
+
+	private bool ValidNode(int nodeId) => nodeId >= 0 && nodeId < network.NodeCount;
+	private static (int, int) Pair(int a, int b) => a < b ? (a, b) : (b, a);
 }

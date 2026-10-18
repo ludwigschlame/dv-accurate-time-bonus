@@ -11,5 +11,6 @@
 		<Compile Include="../AccurateTimeBonus/Routing/RailNetwork.cs" Link="Routing/RailNetwork.cs" />
 		<Compile Include="../AccurateTimeBonus/Routing/RailGraphCompression.cs" Link="Routing/RailGraphCompression.cs" />
 		<Compile Include="../AccurateTimeBonus/Routing/PathFindingCache.cs" Link="Routing/PathFindingCache.cs" />
+		<Compile Include="../AccurateTimeBonus/Routing/RailRoute.cs" Link="Routing/RailRoute.cs" />
 	</ItemGroup>
 </Project>

@@ -19,4 +19,10 @@ public static class PathFinding
 	{
 		cache?.FindShortestDistances(startId, targetIds);
 	}
+
+	public static bool TryGetShortestRoute(int startId, int targetId, out RailRoute route)
+	{
+		route = null!;
+		return cache != null && cache.TryGetShortestRoute(startId, targetId, out route);
+	}
 }
