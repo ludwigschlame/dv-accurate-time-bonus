@@ -15,18 +15,21 @@ permissions:
 jobs:
   build:
     runs-on: self-hosted
+    env:
+      VER: ${{ inputs.version }}
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: Update info.json and repository.json
+      - name: Update changelog and release metadata
         shell: bash
         run: |
           set -euo pipefail
 
-          VER="${{ inputs.version }}"
           FILE="AccurateTimeBonus_${VER}.zip"
           DOWNLOAD_URL="https://github.com/ludwigschlame/dv-accurate-time-bonus/releases/download/${VER}/${FILE}"
+
+          sed -i "s/^## Unreleased$/## Unreleased\n\n## ${VER}/" CHANGELOG.md
 
           tmp="$(mktemp)"
           jq --arg ver "$VER" '.Version = $ver' info.json > "$tmp" && mv "$tmp" info.json
@@ -50,7 +53,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          VER="${{ inputs.version }}"
           BRANCH="release/${VER}"
 
           if git diff --quiet; then
@@ -65,7 +67,7 @@ jobs:
           git switch -c "$BRANCH" || git switch "$BRANCH"
           git pull --ff-only origin "$BRANCH" || true
 
-          git add info.json repository.json
+          git add info.json repository.json CHANGELOG.md
           git commit -m "release ${VER}"
 
           # Tag the release commit (tag points to the same commit that PR will merge)
